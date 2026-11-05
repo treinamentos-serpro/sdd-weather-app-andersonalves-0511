@@ -54,19 +54,39 @@ interação para a busca e a previsão.
    usuário digita, busca por país/região ou outro mecanismo?
 2. Como o usuário escolhe entre cidades com nomes iguais ou semelhantes? Quais
    informações de desambiguação devem ser exibidas?
-3. Qual fonte de dados meteorológicos deve ser utilizada e quais requisitos de
-   cobertura geográfica, atualização, precisão e disponibilidade se aplicam?
+3. Quais requisitos de cobertura geográfica, atualização, precisão e
+   disponibilidade se aplicam à Open-Meteo?
 4. Quais informações devem compor o “clima atual” e a previsão diária?
-5. Os cinco dias incluem o dia atual? A previsão deve ser diária ou apresentar
-   períodos/horários?
-6. A unidade selecionada vale apenas para temperatura ou também para outras
+5. A previsão deve ser diária ou apresentar períodos/horários?
+6. A alternância de unidade vale apenas para temperatura ou também para outras
    grandezas? A preferência deve persistir entre visitas ou dispositivos?
 7. Quais dispositivos, tamanhos de tela, sistemas operacionais e navegadores
    móveis precisam ser suportados?
-8. Há requisitos de acessibilidade, idioma, localização automática ou
-   funcionamento em condições de conectividade limitada?
+8. Há requisitos de acessibilidade, localização automática ou funcionamento em
+   condições de conectividade limitada?
 9. Quais metas mensuráveis de desempenho, disponibilidade e atualização dos
    dados são esperadas?
+
+## Decisões
+
+- **Fonte de dados — Open-Meteo, sem API key.** Justificativa: adota uma fonte
+  definida sem exigir credenciais de API. Resolve a pergunta sobre qual
+  provedor será usado; cobertura, atualização, precisão e disponibilidade
+  esperadas ainda precisam ser especificadas.
+- **Previsão de cinco dias — hoje mais os quatro dias seguintes.** Justificativa:
+  define o intervalo que a expressão “cinco dias” representa. Resolve se o dia
+  atual está incluído; o nível de detalhe (diário ou por períodos/horários)
+  continua em aberto.
+- **Unidade padrão — Celsius (°C).** Justificativa: estabelece a unidade inicial
+  apresentada ao usuário. Resolve a escolha do padrão inicial; persistência da
+  preferência e unidade de outras grandezas continuam em aberto.
+- **Sem autenticação e sem persistência de servidor.** Justificativa: mantém a
+  experiência sem conta e evita armazenar dados de usuário no servidor. Resolve
+  se haverá autenticação ou armazenamento de preferências/dados no servidor;
+  persistência local no dispositivo não foi definida.
+- **Idioma da interface — português do Brasil (pt-BR).** Justificativa:
+  estabelece o idioma inicial da experiência. Resolve o idioma da UI; suporte a
+  outros idiomas e regras de localização regional continuam em aberto.
 
 ## Suposições
 
@@ -78,6 +98,9 @@ interação para a busca e a previsão.
   temperatura apresentados.
 - “Usar em dispositivos móveis” implica uma interface adaptável e utilizável em
   telas móveis, mas não define por si só suporte a aplicativos nativos.
-- O briefing não determina provedor de dados, necessidade de conta, modelo de
-  monetização ou persistência de preferências; nenhum desses pontos é tratado
-  como requisito confirmado.
+- A interface não exige conta e não persiste dados no servidor, conforme as
+  decisões registradas; a persistência local de preferências ainda não foi
+  definida.
+- A fonte de dados definida é a Open-Meteo; modelo de monetização e requisitos
+  específicos de cobertura, atualização, precisão e disponibilidade ainda
+  precisam ser confirmados.
