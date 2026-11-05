@@ -278,27 +278,101 @@ Ambos os endpoints seguem timeout total de 10 segundos, carregamento em até 200
 
 ## State Management
 
-Manter estado local React no hook que coordena a tela. Não persistir consulta, localidade ou unidade em servidor ou armazenamento do navegador.
+### Onde o estado vive
+
+Uma única instância de `useWeatherSearch`, usada por `App`, concentra o estado compartilhado da página. Os componentes recebem valores e callbacks por props; não manter cópias do relatório ou da unidade em cada cartão. Usar estado local React, sem store global, Context ou persistência em servidor/armazenamento do navegador.
+
+| Estado | Conteúdo e finalidade |
+|---|---|
+| `query` | Texto editável do formulário; digitar não inicia requisição. |
+| `submittedQuery` | Último termo enviado após `trim()`, associado à operação e ao retry, independentemente de edições posteriores. |
+| `searchState` | Estado assíncrono dos resultados `City[]`. |
+| `selectedCity` | `City` selecionada ou `null`; identifica a consulta meteorológica. |
+| `weatherState` | Estado assíncrono de `WeatherData`, com temperaturas canônicas em Celsius. |
+| `unit` | `Unit`, inicialmente `"celsius"`; preservada em novas buscas e seleções até recarregar a página. |
+
+Controladores de cancelamento e identificadores de operação vivem em refs do hook, pois não são conteúdo de interface. A cidade/consulta usada por uma operação é capturada no seu início, inclusive para repetir exatamente a operação que falhou.
+
+### Estados explícitos e transições
+
+Contrato de estado assíncrono, sem implementação:
 
 ```ts
+type RequestErrorKind = "network" | "api" | "timeout" | "invalid-response";
+
+interface RequestError {
+  kind: RequestErrorKind;
+  message: string;
+  status?: number;
+}
+
 type AsyncState<T> =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "success"; data: T }
   | { status: "empty" }
-  | { status: "error"; message: string; retry: () => void };
+  | { status: "error"; error: RequestError };
 ```
 
-O hook mantém separadamente o texto da busca, resultados, localidade selecionada, estado meteorológico e unidade. A unidade inicial é Celsius e permanece em memória até recarregar ou durante a seleção de outra cidade. O relatório canônico em Celsius permite alternar a exibição sem nova chamada. Uma identificação monotônica de operação (ou cancelamento com verificação da seleção atual) impede que uma resposta atrasada de uma localidade anterior substitua a seleção mais recente (CA-07d). O formulário continua utilizável após erro para permitir repetição explícita.
+| Estado | Significado e comportamento |
+|---|---|
+| `idle` | Nenhuma operação iniciada ou consulta meteorológica ainda sem seleção. Mostrar orientação, sem spinner. |
+| `loading` | Operação em andamento; anunciar carregamento e remover os dados da operação substituída dessa região da tela. |
+| `success` | Resposta válida, inclusive parcial; renderizar dados e sinalizar campos indisponíveis. |
+| `empty` | Exclusivo da busca: resposta válida sem localidades; manter texto editável e não consultar forecast. |
+| `error` | Falha terminal da operação; remover carregamento, explicar a falha e oferecer retry explícito. |
+
+Busca e clima têm estados independentes: uma falha de forecast não apaga as opções de cidades. O estado meteorológico utiliza apenas `idle`, `loading`, `success` e `error`; um forecast sem nenhum campo disponível, mas com estrutura/fuso válidos, não significa “cidade não encontrada”: apresenta as cinco datas com campos “Indisponível”.
+
+Transições previstas:
+
+- Envio válido: `idle | success | empty | error → loading → success | empty | error` na busca. Busca vazia apenas mostra validação junto ao campo; não inicia operação nem usa `empty`.
+- Nova busca válida cancela/invalida operações anteriores, limpa seleção e retorna o clima a `idle`. Edição sem submissão não altera o relatório exibido.
+- Seleção: `idle | success | error | loading → loading → success | error` no clima. A nova seleção permanece interativa durante carregamento.
+- Retry: `error → loading`, com a mesma consulta/cidade da falha, sem repetição automática.
+- Troca de unidade: altera somente `unit`, sem transição do estado assíncrono nem chamada de rede.
+
+Manter identificadores independentes para busca e clima. Cancelar operações substituídas e verificar o identificador antes de aplicar qualquer resultado, erro ou encerramento de carregamento. Isso impede que uma operação antiga esconda o spinner ou substitua dados da atual, mesmo quando o transporte não respeitar cancelamento (CA-07d). Cancelar também ao desmontar a página.
+
+### Temperaturas derivadas na renderização
+
+Armazenar apenas os números recebidos em Celsius, sem manter uma segunda versão Fahrenheit. Na renderização, funções puras de `lib/temperature.ts` recebem valor e `unit`:
+
+- Celsius: usar o valor canônico.
+- Fahrenheit: calcular `C × 9/5 + 32` a partir do valor canônico, nunca do valor já arredondado.
+- Formatar com `Intl.NumberFormat("pt-BR")`, com exatamente uma casa decimal, e acrescentar `°C` ou `°F`.
+- Para `null`, exibir “Indisponível”, sem executar conversão nem coerção para zero.
+
+Aplicar a mesma unidade à temperatura atual, mínimas e máximas. Por exemplo, `0 °C` é exibido como `0,0 °C` ou `32,0 °F`. O efeito que busca dados não depende de `unit`; alternar unidade não chama serviços. Se a pessoa alternar durante carregamento, a resposta em Celsius será apresentada usando a unidade vigente naquela renderização (CA-05a–c e edge cases).
 
 ## Error Handling
 
-- Mostrar carregamento imediatamente na submissão/início da consulta; meta de renderização em até 200 ms (CA-07a, RNF-04).
-- Cada operação externa tem timeout total de 10 segundos. Cancelar a requisição ao expirar e distinguir timeout de falha de rede, resposta HTTP inválida e resposta malformada.
-- Erros removem o indicador de carregamento, informam que os dados não puderam ser obtidos e oferecem nova tentativa explícita para a mesma busca ou localidade. Não repetir automaticamente (RF-07, CA-07c).
-- A busca sem correspondência tem estado próprio, distinto de falha. Requisição vazia não é erro de API e não faz chamada.
-- Resposta parcialmente válida mantém os campos válidos; campo atual ou previsão ausente é exibido como “Indisponível”. Não usar zero, cache antigo ou dados de outra localidade.
-- Isolar erros e respostas tardias por operação/seleção. Exibir conteúdo remoto como texto, nunca HTML.
+### Classificação na fronteira HTTP
+
+Os serviços convertem falhas esperadas em erros tipados; o hook traduz esses erros para `error` na operação correspondente. Não retornar lista vazia ou relatório fictício para disfarçar uma falha.
+
+| Situação | Classificação | Comportamento |
+|---|---|---|
+| Rejeição de `fetch` por conexão, DNS ou bloqueio de transporte | `network` | “Não foi possível conectar à fonte de dados. Tente novamente.” Não afirmar que a pessoa está offline sem evidência. |
+| HTTP não bem-sucedido, inclusive 429 e 5xx, ou payload de erro do provedor | `api` | Preservar status HTTP quando disponível; informar falha do serviço. Para 429, orientar aguardar antes de tentar novamente; não agendar retry. |
+| Operação excede o limite de 10 segundos | `timeout` | Encerrar carregamento e informar tempo esgotado, mesmo que o transporte demore a concluir o cancelamento. |
+| JSON inválido, estrutura essencial incorreta, fuso inválido ou unidades incompatíveis | `invalid-response` | Informar que a resposta da fonte não pôde ser utilizada; não usar fuso/unidades presumidos como fallback. |
+| Campos meteorológicos/dias ausentes ou nulos em estrutura válida | Não é falha total: `success` parcial | Preservar campos válidos e marcar cada ausência como “Indisponível”. |
+| `results` ausente ou vazio em resposta válida de geocoding | `empty` | “Nenhuma cidade encontrada”; permitir editar/reenviar, sem consulta meteorológica. |
+
+Campos meteorológicos individuais inválidos, como valores não finitos ou código WMO desconhecido, devem ter indisponibilidade explícita no campo afetado, sem invalidar dados independentes válidos. Uma estrutura essencial ilegível é diferente de campos pontuais indisponíveis e resulta em `invalid-response`.
+
+### Prazo, cancelamento e retry
+
+- Ativar carregamento no início da ação, sem debounce ou espera pela rede; renderizar em até 200 ms (CA-07a, RNF-04).
+- Aplicar um único prazo total de 10 segundos por chamada, incluindo leitura do corpo. Não reiniciar o prazo após receber headers. Ao expirar, abortar, encerrar a operação no hook e invalidar seu resultado tardio.
+- Limpar timers/controladores ao concluir ou cancelar. Cancelamento por nova busca, nova seleção ou desmontagem não é erro para a pessoa; timeout é uma falha comunicada.
+- O botão “Tentar novamente” executa o callback do hook com o termo/cidade capturado na falha. Não guardar funções de retry dentro do objeto de erro, não repetir automaticamente nem iniciar uma cadeia de tentativas que ultrapasse o prazo.
+- A operação substituída não mantém dados antigos visíveis como se fossem atuais; nunca preencher lacunas com zero, cache ou dados de outra cidade.
+
+### Comunicação acessível
+
+Mensagens são em pt-BR e específicas da região de busca ou clima. Anunciar carregamento e ausência de resultados com `role="status"` e erros com `role="alert"`, sem anúncios duplicados. Manter botões de retry acessíveis por teclado e foco visível, preservando o formulário e as opções válidas para recuperação. Exibir conteúdo externo como texto, nunca HTML (RNF-03, RNF-06).
 
 ## Testing Strategy
 
