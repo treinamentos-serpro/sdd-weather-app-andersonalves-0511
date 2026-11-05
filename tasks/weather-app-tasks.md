@@ -757,6 +757,10 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 
 - **Descrição:** Ajustar composição e espaçamento do shell da página em
   viewports desktop e mobile.
+- **Revisão da UI mock:** corrigir perda de foco ao encerrar loading/retry,
+  sem roubar foco de outro controle; foco no input após validação vazia.
+  Validar contraste dos limites dos campos ≥ 3:1 e textos ≥ 4,5:1, movimento
+  reduzido e todos os estados com textos longos entre 320 e 1920 px.
 - **Critérios de aceite:**
   - Em 320, 375, 768, 1024, 1440 e 1920 CSS px, shell completo com sucesso e erro
     satisfaz `documentElement.scrollWidth <= clientWidth`.

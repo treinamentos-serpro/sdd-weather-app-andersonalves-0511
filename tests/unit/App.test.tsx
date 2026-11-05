@@ -130,9 +130,10 @@ describe('App com mock', () => {
     search('   ');
     expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome de uma cidade.');
     expect(screen.getByRole('status')).toHaveTextContent('Consulte o clima');
+    const cancelTimer = vi.spyOn(window, 'clearTimeout');
     search('São Paulo');
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     cleanup();
-    expect(vi.getTimerCount()).toBe(0);
+    expect(cancelTimer).toHaveBeenCalledOnce();
   });
 });

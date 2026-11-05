@@ -456,6 +456,17 @@ acessam a rede, movem o foco ou agendam retry.
 
 ## Testing Strategy
 
+### Revisão de acessibilidade da UI mock
+
+Ao terminar loading, se o foco ficou no `body` porque o campo foi desabilitado
+ou o retry foi desmontado, a composição foca o conteúdo principal com outline
+visível. Não mover foco se a pessoa estiver em outro controle. Na validação
+vazia, focar o input associado à mensagem. Input e select usam bordas sólidas
+com contraste mínimo de 3:1; textos normais mantêm ao menos 4,5:1.
+Testar teclado, movimento reduzido e todos os estados de 320 a 1920 px,
+incluindo nomes e mensagens longos, com Playwright. Isso não substitui
+validação manual com leitor de tela.
+
 ### Isolamento por camada
 
 | Alvo | Estratégia | Benefício da separação |

@@ -198,6 +198,20 @@ O bootstrap está em [`main.tsx`](src/main.tsx) e os estilos Tailwind em
 [`styles/index.css`](src/styles/index.css). Esta etapa não implementa
 geocodificação, seleção de localidades ou dados meteorológicos ao vivo.
 
+## Acessibilidade e responsividade
+
+A revisão da UI mock corrigiu contraste dos limites do input/select (mínimo
+3:1), foco no campo após busca vazia e recuperação do foco no conteúdo quando
+loading/retry deixam o `body` ativo. A composição não rouba foco de outro
+controle em uso. O conteúdo principal tem outline visível e link de salto.
+
+[`accessibility.spec.ts`](tests/e2e/accessibility.spec.ts) verifica teclado,
+contraste de textos (mínimo 4,5:1), bordas/foco (3:1), movimento reduzido,
+todos os estados e textos longos nas larguras 320, 375, 768, 1024, 1440 e
+1920 px. O grid preserva 2/3/5 colunas e os controles têm alvos de ao menos
+44 × 44 px. Continua recomendada validação manual com leitor de tela; os
+testes não constituem certificação completa WCAG.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

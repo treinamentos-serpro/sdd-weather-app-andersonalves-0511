@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -22,6 +22,19 @@ export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
   const { state, search, preview, retry } = useMockWeather();
   const previewId = useId();
+  const contentRef = useRef<HTMLElement>(null);
+  const previousState = useRef(state);
+
+  useEffect(() => {
+    if (
+      previousState.current === 'loading' &&
+      state !== 'loading' &&
+      document.activeElement === document.body
+    ) {
+      contentRef.current?.focus();
+    }
+    previousState.current = state;
+  }, [state]);
 
   return (
     <div className="min-h-screen bg-night-900 font-sans text-white">
@@ -56,7 +69,7 @@ export default function App() {
                 const option = previews.find(({ value }) => value === event.target.value);
                 if (option) preview(option.value);
               }}
-              className="min-h-11 max-w-full rounded-xl border border-white/20 bg-night-800 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400"
+              className="min-h-11 max-w-full rounded-xl border border-slate-400 bg-night-800 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400"
             >
               {previews.map(({ value, label }) => (
                 <option key={value} value={value}>
@@ -66,7 +79,12 @@ export default function App() {
             </select>
           </div>
         </header>
-        <main id="weather-content" tabIndex={-1} className="min-w-0 space-y-6">
+        <main
+          ref={contentRef}
+          id="weather-content"
+          tabIndex={-1}
+          className="min-w-0 space-y-6 rounded-2xl focus:outline focus:outline-2 focus:outline-offset-4 focus:outline-accent-400"
+        >
           {state === 'idle' && (
             <EmptyState
               title="Consulte o clima"

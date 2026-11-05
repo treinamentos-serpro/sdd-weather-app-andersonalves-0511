@@ -1,4 +1,4 @@
-import { type FormEvent, useId, useState } from 'react';
+import { type FormEvent, useId, useRef, useState } from 'react';
 
 interface SearchBarProps {
   onSearch: (city: string) => void;
@@ -10,6 +10,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
   const errorId = `${inputId}-error`;
   const [city, setCity] = useState('');
   const [error, setError] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,6 +19,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
     const query = city.trim();
     if (!query) {
       setError(true);
+      inputRef.current?.focus();
       return;
     }
 
@@ -37,6 +39,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
       </label>
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
+          ref={inputRef}
           id={inputId}
           name="city"
           type="text"
@@ -49,7 +52,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
             setError(false);
           }}
           placeholder="Ex.: São Paulo"
-          className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/20 bg-night-900 px-4 py-2 text-white placeholder:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-400 bg-night-900 px-4 py-2 text-white placeholder:text-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="submit"
