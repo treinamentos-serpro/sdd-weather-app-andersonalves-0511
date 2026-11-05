@@ -42,13 +42,17 @@ Actions**.
 ## Desafio 11.4 — Disparar o deploy
 
 Faça merge do PR (ou push na `main`). O workflow
-[`pages.yml`](../../.github/workflows/pages.yml) vai:
+[`pages.yml`](../../.github/workflows/pages.yml) vai aguardar o **CI** concluir
+com sucesso na `main` e então:
 
 1. buildar o app com `VITE_BASE=/<repo>/app/`,
 2. montar `_site` (site na raiz + app em `/app/` + markdown em `/workshop/`),
 3. publicar no Pages.
 
 **Sucesso:** o workflow conclui verde e gera a URL de deploy.
+
+Também é possível dispará-lo manualmente em **Actions → Deploy to GitHub
+Pages → Run workflow**.
 
 > Veja `Prompts` → **P11.3**.
 
@@ -61,7 +65,9 @@ Acesse:
 - **Site do workshop:** `https://<user>.github.io/<repo>/`
 - **App:** `https://<user>.github.io/<repo>/app/`
 
-**Sucesso:** ambos carregam e o app funciona (busca, clima, unidade).
+**Sucesso:** ambos carregam e o app funciona (busca, clima, unidade). No
+workshop, abra o primeiro módulo e confira as abas Guia, Desafio, Prompts e
+Solução: nenhuma deve exibir “Não foi possível carregar”.
 
 > Veja `Prompts` → **P11.4**.
 
