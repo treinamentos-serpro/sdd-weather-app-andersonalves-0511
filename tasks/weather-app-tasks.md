@@ -20,7 +20,7 @@ concluídas.
 | Hook | T-10, T-27, T-32 |
 | Componentes | T-02, T-06, T-08, T-23, T-25, T-30, T-34 |
 | Integração | T-03, T-12, T-29, T-33, T-36 |
-| Testes unitários/componentes | T-05, T-07, T-09, T-11, T-14, T-16, T-18, T-20, T-22, T-24, T-26, T-28, T-31, T-35 |
+| Testes unitários/componentes | T-05, T-07, T-09, T-11, T-14, T-16, T-18, T-20, T-22, T-24, T-26, T-28, T-31, T-35, T-45 |
 | Testes integrados | T-40, T-41, T-42, T-43 |
 | Hardening e gates finais | T-37, T-38, T-39, T-44 |
 
@@ -91,12 +91,13 @@ concluídas.
 - **Rastreabilidade:** RF-01–02, RF-07; CA-01a–b, CA-02, CA-07c; RNF-04,
   RNF-06–07.
 
-### T-05 — Testar o serviço de geocodificação
+### T-05 — Testar geocodificação com fetch mockado
 
 - **Descrição:** Validar parâmetros, mapeamento e falhas do serviço com `fetch`
   simulado.
 - **Critérios de aceite:**
-  - Testes verificam URL/parâmetros, Unicode decodificado e saída `City[]`.
+  - `fetch` é mockado e nenhuma chamada de rede real ocorre; testes verificam
+    URL/parâmetros, Unicode decodificado e saída `City[]`.
   - Cobrem resultado vazio, falhas de rede e HTTP, JSON/estrutura inválidos e
     timeout exatamente aos 10.000 ms, incluindo corpo pendente após headers.
   - Resposta inválida não é convertida silenciosamente em lista vazia.
@@ -331,13 +332,14 @@ concluídas.
 - **Rastreabilidade:** RF-03–04, RF-07; CA-03a–b, CA-04a–b, CA-07c; RNF-04,
   RNF-06–07.
 
-### T-20 — Testar o serviço de previsão
+### T-20 — Testar previsão com fetch mockado
 
 - **Descrição:** Verificar parâmetros, normalização e falhas do serviço com
   `fetch` simulado.
 - **Critérios de aceite:**
-  - Asserções da URL conferem coordenadas da localidade selecionada e todos os
-    parâmetros de T-19, incluindo campos current/daily.
+  - `fetch` é mockado e nenhuma chamada de rede real ocorre; asserções da URL
+    conferem coordenadas da localidade selecionada e todos os parâmetros de
+    T-19, incluindo campos current/daily.
   - Fixtures confirmam saída `WeatherData` completa e parcial; rejeições são
     verificadas para rede, HTTP 429/500, payload de erro, JSON/estrutura/fuso e
     unidades inválidos.
@@ -366,7 +368,7 @@ concluídas.
 - **Tipo:** Data
 - **Rastreabilidade:** RF-05; CA-05a–c.
 
-### T-22 — Testar conversão e formatação de temperatura
+### T-22 — Testar unitariamente conversão de unidade
 
 - **Descrição:** Verificar conversões, arredondamento, unidades e valores
   indisponíveis.
@@ -654,6 +656,25 @@ concluídas.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-06; CA-06; RNF-02–03.
 
+### T-45 — Testar estados loading, erro e vazio na página
+
+- **Descrição:** Testar os componentes integrados da página para os estados de
+  carregamento, falha e ausência de resultados com serviços controlados.
+- **Critérios de aceite:**
+  - Com busca pendente, a página anuncia loading com `role="status"` e mantém o
+    formulário disponível.
+  - Geocoding sem resultados anuncia estado vazio, mantém o termo editável e
+    não renderiza dados meteorológicos.
+  - Falha de geocoding e falha de forecast anunciam erro com `role="alert"`,
+    removem loading e apresentam retry da operação correspondente.
+  - A cada estado, as consultas por role encontram exatamente uma mensagem
+    apropriada; retry chama o serviço simulado uma vez com termo/localidade
+    original.
+- **Dependências:** T-12, T-27, T-34, T-36.
+- **Arquivos prováveis:** `tests/unit/App.test.tsx`
+- **Tipo:** Test
+- **Rastreabilidade:** RF-01–04, RF-07; CA-01c, CA-07a–c; RNF-03–04.
+
 ### T-40 — Testar o fluxo principal integrado
 
 - **Descrição:** Validar busca, seleção, consulta atual e previsão com respostas
@@ -668,11 +689,14 @@ concluídas.
     exatamente as cinco datas esperadas.
   - Com resposta de rede mantida pendente, indicador aparece ≤ 200 ms após
     submissão/seleção; todas as respostas vêm de fixtures interceptadas.
-- **Dependências:** T-05, T-11, T-12, T-20, T-28, T-29, T-36.
+ - O mesmo fluxo principal é executado em viewport mobile de 375 CSS px e
+    confirma `documentElement.scrollWidth <= clientWidth`, com busca, seleção e
+    previsão acessíveis por rolagem vertical.
+- **Dependências:** T-05, T-11, T-12, T-20, T-28, T-29, T-36, T-45.
 - **Arquivos prováveis:** `tests/e2e/weather-search.spec.ts`
 - **Tipo:** Test
-- **Rastreabilidade:** RF-01–04, RF-07–08; CA-01a–b, CA-02, CA-03a, CA-04a,
-  CA-07a–b, CA-08.
+- **Rastreabilidade:** RF-01–06, RF-07–08; CA-01a–b, CA-02, CA-03a, CA-04a,
+  CA-06, CA-07a–b, CA-08; RNF-02.
 
 ### T-41 — Testar alternância de unidade integrada
 
@@ -734,7 +758,8 @@ concluídas.
   - Inspeção dos testes confirma que chamadas à Open-Meteo são interceptadas ou
     mockadas; a suíte não faz requisições de API ao vivo.
 - **Dependências:** T-05, T-07, T-09, T-11, T-14, T-16, T-18, T-20, T-22,
-  T-24, T-26, T-28, T-31, T-35, T-37, T-38, T-39, T-40, T-41, T-42, T-43.
+  T-24, T-26, T-28, T-31, T-35, T-37, T-38, T-39, T-40, T-41, T-42, T-43,
+  T-45.
 - **Arquivos prováveis:** Código e testes das entregas; configuração existente
   somente se necessária.
 - **Tipo:** Infra
