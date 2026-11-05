@@ -4,7 +4,7 @@ Este plano deriva da especificação em [weather-app-spec.md](../specs/weather-a
 
 ## Architecture
 
-Aplicação cliente React, organizada em apresentação, estado de interface e serviços HTTP. A UI não conhece o formato bruto das respostas externas: os serviços validam e convertem os dados da Open-Meteo para os contratos internos.
+Aplicação cliente React com quatro responsabilidades: apresentação (`components`), orquestração/estado (`hooks`), acesso a dados (`services`) e funções puras (`lib`). A UI não conhece o formato bruto das respostas externas: os serviços validam e convertem os dados da Open-Meteo para os contratos internos.
 
 ```text
 Busca e seleção ──> hook de consulta ──> serviço de geocodificação ──> Open-Meteo
@@ -18,6 +18,20 @@ Busca e seleção ──> hook de consulta ──> serviço de geocodificação 
 - Consulta de condições atuais e cinco dias de previsão para as coordenadas selecionadas (RF-03, RF-04).
 - Conversão de unidade apenas na apresentação; os valores internos permanecem em Celsius (RF-05).
 - Interface responsiva, localizada em pt-BR, acessível por teclado e com atribuição da fonte (RF-06, RF-08; RNF-01 a RNF-03).
+
+### Responsabilidades e dependências
+
+| Camada | Responsabilidade | Limite |
+|---|---|---|
+| `components` | Renderizar dados e estados recebidos por props; emitir ações por callbacks; manter semântica, foco e layout. | Não fazer `fetch`, interpretar JSON da API ou coordenar requisições. Pode usar `lib` para apresentação. |
+| `hooks` | Coordenar busca explícita, seleção, carregamento, erros, retry e unidade; cancelar operações substituídas e ignorar respostas obsoletas. | Chamar serviços sem construir URLs nem depender do JSON bruto; não gerar marcação. |
+| `services` | Montar URLs, executar HTTP com timeout/cancelamento, validar respostas e entregar `City[]` ou `WeatherData`. | Não importar React, alterar estado da tela ou decidir foco e layout. |
+| `lib` | Converter temperaturas, traduzir códigos WMO, formatar datas e normalizar séries em funções puras. | Não acessar rede, DOM, armazenamento ou estado React; receber relógio/data de referência como argumento quando necessário. |
+| `types` | Compartilhar os contratos de domínio entre as camadas. | Não executar lógica nem importar componentes, hooks ou serviços. |
+
+`App` compõe os componentes e conecta os dados e callbacks do hook. As dependências seguem `App → hooks → services → Open-Meteo`; componentes e serviços podem reutilizar `lib`, e todas as camadas podem consumir `types`. `lib` não depende das camadas superiores. O serviço aplica as funções puras de normalização; o hook permanece responsável apenas pelo ciclo de vida da operação.
+
+Essa separação isola efeitos colaterais na fronteira HTTP e no ciclo de vida React, sem exigir classes, repositórios genéricos, contextos globais ou injeção de dependências por framework.
 
 ## Tech Stack
 
@@ -35,6 +49,8 @@ Estrutura proposta, alinhada às convenções existentes:
 
 ```text
 src/
+  App.tsx
+  main.tsx
   components/
     SearchForm.tsx
     LocationResults.tsx
@@ -50,15 +66,19 @@ src/
     weatherService.ts
   types/
     weather.ts
-  utils/
+  lib/
     temperature.ts
     weatherCode.ts
+    dateTime.ts
+    normalizeWeather.ts
 tests/
   unit/
   e2e/
 ```
 
-Componentes cuidam da renderização e interação; o hook coordena estados e operações; serviços fazem requisições e normalização; tipos e utilitários mantêm os contratos e conversões compartilhados. Localizar os testes seguindo a organização já adotada pelo repositório, sem duplicar convenções.
+`main.tsx` inicializa React; `App.tsx` compõe a página. `lib/temperature.ts` converte e formata temperaturas; `lib/weatherCode.ts` mapeia WMO para pt-BR; `lib/dateTime.ts` trata datas locais e formatação; `lib/normalizeWeather.ts` transforma a resposta meteorológica validada em condições atuais e cinco entradas diárias. A validação do payload externo e o mapeamento simples da geocodificação permanecem junto aos respectivos serviços, sem criar um arquivo para cada pequena transformação.
+
+As pastas propostas são fronteiras de responsabilidade, não novas camadas de execução. Não criar arquivos vazios preventivamente: introduzir cada módulo quando a tarefa correspondente exigir. Localizar os testes seguindo a organização já adotada pelo repositório, sem duplicar convenções.
 
 ## Data Model
 
@@ -281,6 +301,18 @@ O hook mantém separadamente o texto da busca, resultados, localidade selecionad
 - Isolar erros e respostas tardias por operação/seleção. Exibir conteúdo remoto como texto, nunca HTML.
 
 ## Testing Strategy
+
+### Isolamento por camada
+
+| Alvo | Estratégia | Benefício da separação |
+|---|---|---|
+| `lib` | Vitest com entradas e saídas conhecidas, incluindo fuso, virada de dia, lacunas e valores nulos. | Não requer renderização nem rede; relógio explícito torna os testes determinísticos. |
+| `services` | Simular `fetch` na fronteira HTTP e verificar URL, parâmetros, normalização, erros e cancelamento. Restaurar mocks e timers após cada teste. | Valida o contrato externo sem depender da disponibilidade da Open-Meteo ou da UI. |
+| `hooks` | Usar `renderHook` com serviços simulados, promessas controladas e timers falsos para timeout. | Exercita transições de estado, retry da mesma operação, respostas fora de ordem e troca de unidade durante carregamento. |
+| `components` | Renderizar props de cada estado e observar callbacks por ações acessíveis. | Testa conteúdo, teclado e mensagens sem conhecer HTTP ou detalhes do hook. |
+| Fluxo completo | Playwright com respostas HTTP controladas. | Confirma que as camadas estão conectadas corretamente nos cenários da spec. |
+
+### Cobertura de requisitos
 
 - **Unitários (Vitest):** aparar busca e evitar chamada vazia; codificação Unicode; normalização de localização e identidade de homônimos; conversão C/F e arredondamento a uma casa; mapeamento de códigos meteorológicos; normalização de valores ausentes e dias previstos; tratamento de resposta inválida, timeout e falha HTTP.
 - **Componentes (Testing Library):** estados idle/loading/empty/error/success, retry explícito, anúncios semânticos, navegação por teclado, nomes acessíveis e unidade consistente em todas as temperaturas.
