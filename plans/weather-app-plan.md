@@ -58,7 +58,10 @@ src/
     ForecastList.tsx
     ForecastCard.tsx
     TemperatureUnitToggle.tsx
-    StatusMessage.tsx
+    states/
+      LoadingState.tsx
+      ErrorState.tsx
+      EmptyState.tsx
     SourceAttribution.tsx
   hooks/
     useWeatherSearch.ts
@@ -429,6 +432,15 @@ Campos meteorológicos individuais inválidos, como valores não finitos ou cód
 ### Comunicação acessível
 
 Mensagens são em pt-BR e específicas da região de busca ou clima. Anunciar carregamento e ausência de resultados com `role="status"` e erros com `role="alert"`, sem anúncios duplicados. Manter botões de retry acessíveis por teclado e foco visível, preservando o formulário e as opções válidas para recuperação. Exibir conteúdo externo como texto, nunca HTML (RNF-03, RNF-06).
+
+Os componentes de apresentação em `components/states/` são independentes da
+consulta: `LoadingState` recebe `message?: string`, com padrão
+“Carregando dados do clima…”; `ErrorState` recebe `message: string` e
+`onRetry: () => void`; `EmptyState` recebe `title?: string` e `hint?: string`,
+com padrões “Nenhuma cidade encontrada” e “Tente buscar outra cidade ou
+verifique o nome informado.”. O hook/composição fornece a mensagem específica
+do erro (incluindo orientação para 429); os componentes não classificam erros,
+acessam a rede, movem o foco ou agendam retry.
 
 ## Testing Strategy
 

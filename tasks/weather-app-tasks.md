@@ -667,7 +667,10 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Botão de retry tem nome acessível e invoca somente o callback fornecido; não
     agenda outra tentativa por conta própria.
 - **Dependências:** T-01.
-- **Arquivos prováveis:** `src/components/StatusMessage.tsx`
+- **Arquivos prováveis:** `src/components/states/LoadingState.tsx`,
+  `src/components/states/ErrorState.tsx`, `src/components/states/EmptyState.tsx`.
+  Mensagens específicas de erro vêm da composição por `message`; retry usa
+  `onRetry`. Título e dica do vazio são personalizáveis por `title` e `hint`.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-07; CA-07a–c; RNF-01, RNF-03–04, RNF-07.
 
@@ -682,7 +685,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Clique no retry chama callback uma vez; avanço de timers sem interação não
     produz nova chamada.
 - **Dependências:** T-34.
-- **Arquivos prováveis:** `tests/unit/StatusMessage.test.tsx`
+- **Arquivos prováveis:** `tests/unit/States.test.tsx`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-07; CA-07a–c; RNF-03.
 

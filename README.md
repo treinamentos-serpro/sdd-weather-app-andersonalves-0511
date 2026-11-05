@@ -168,6 +168,20 @@ máxima, mínima e probabilidade de chuva. O helper
 inválidos aparecem como “Indisponível”. O mock inclui probabilidades de exemplo.
 Loading e erro da consulta continuam sob responsabilidade da composição da tela.
 
+## Estados da interface
+
+- [`LoadingState`](src/components/states/LoadingState.tsx): `role="status"`,
+  mensagem padrão de carregamento e prop opcional `message`.
+- [`ErrorState`](src/components/states/ErrorState.tsx): recebe `message: string`
+  e `onRetry: () => void`; anuncia a mensagem com `role="alert"` e oferece
+  “Tentar novamente”, acessível por teclado, sem retry automático.
+- [`EmptyState`](src/components/states/EmptyState.tsx): `role="status"` com
+  título e dica; props opcionais `title` e `hint` permitem personalizar o
+  estado inicial ou a ausência de resultados.
+
+A composição escolhe o estado e fornece mensagens específicas da operação.
+Os componentes não fazem requisições nem alteram o foco automaticamente.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**
