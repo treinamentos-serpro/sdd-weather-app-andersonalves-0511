@@ -422,12 +422,15 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 - **Critérios de aceite:**
   - Uma chamada `GET` HTTPS envia latitude/longitude selecionadas, `current`,
     `daily`, `timezone=auto`, `forecast_days=5`, `temperature_unit=celsius`,
-    `wind_speed_unit=kmh` e `timeformat=iso8601`.
+    `wind_speed_unit=kmh` e `timeformat=iso8601`. `current` inclui
+    `precipitation` e `surface_pressure`; `daily` inclui
+    `precipitation_probability_max`.
   - Resposta não-2xx, JSON inválido, estrutura/fuso inválidos e unidades
     incompatíveis rejeitam com o tipo de erro correspondente, sem relatório de
     sucesso.
-  - Campos individuais ausentes/nulos resultam em `null` no campo interno; os
-    campos válidos da mesma resposta permanecem intactos.
+  - Campos escalares e arrays meteorológicos opcionais ausentes/nulos, ou com
+    índices ausentes, resultam em `null` no campo interno; os campos válidos da
+    mesma resposta permanecem intactos. Zero continua sendo um valor válido.
   - A promise pendente termina como timeout ao atingir 10.000 ms, inclusive
     quando o corpo não termina após os headers; abort/cancelamento não é tratado
     como timeout visível.

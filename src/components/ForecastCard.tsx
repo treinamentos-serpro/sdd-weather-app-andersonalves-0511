@@ -11,8 +11,8 @@ interface ForecastCardProps {
 
 export default function ForecastCard({ day, unit }: ForecastCardProps) {
   const headingId = useId();
-  const label = formatDay(day.date);
-  const condition = getWeatherCondition(day.weatherCode);
+  const label = formatDay(day.date ?? '');
+  const condition = getWeatherCondition(day.weatherCode ?? null);
 
   return (
     <article
@@ -30,19 +30,19 @@ export default function ForecastCard({ day, unit }: ForecastCardProps) {
         <div>
           <dt className="text-sm text-slate-300">Máxima</dt>
           <dd className="break-words text-lg font-semibold text-sun">
-            {formatTemperature(day.temperatureMaxC, unit)}
+            {formatTemperature(day.temperatureMaxC ?? null, unit)}
           </dd>
         </div>
         <div>
           <dt className="text-sm text-slate-300">Mínima</dt>
           <dd className="break-words text-lg font-semibold">
-            {formatTemperature(day.temperatureMinC, unit)}
+            {formatTemperature(day.temperatureMinC ?? null, unit)}
           </dd>
         </div>
         <div>
           <dt className="text-sm text-slate-300">Probabilidade de chuva</dt>
           <dd className="break-words font-semibold">
-            {formatPrecipitationProbability(day.precipitationProbability)}
+            {formatPrecipitationProbability(day.precipitationProbability ?? null)}
           </dd>
         </div>
       </dl>

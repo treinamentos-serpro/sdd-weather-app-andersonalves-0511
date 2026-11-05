@@ -13,7 +13,9 @@ test('UI permite buscar, alternar unidade e recuperar erro com HTTP simulado', a
   await expect(page.getByRole('region', { name: 'São Paulo' })).toContainText('79,5 °F');
   weatherApi.mode = 'error';
   await page.getByRole('button', { name: 'Buscar' }).click();
-  await expect(page.getByRole('alert')).toContainText('HTTP 503');
+  await expect(page.getByRole('alert')).toContainText(
+    'A fonte de dados está temporariamente indisponível.',
+  );
   await page.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByRole('article')).toHaveCount(5);
   await expect(page.getByRole('region', { name: 'São Paulo' })).toContainText('79,5 °F');

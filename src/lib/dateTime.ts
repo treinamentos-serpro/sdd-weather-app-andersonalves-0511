@@ -1,5 +1,5 @@
-export function formatLocalDateTime(local: string | null): string {
-  if (local === null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(local)) {
+export function formatLocalDateTime(local: string | null | undefined): string {
+  if (local == null || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(local)) {
     return 'Indisponível';
   }
 

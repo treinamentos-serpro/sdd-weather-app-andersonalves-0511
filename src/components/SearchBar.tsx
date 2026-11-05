@@ -57,7 +57,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
         <button
           type="submit"
           disabled={disabled}
-          className="min-h-11 min-w-11 rounded-xl bg-accent-400 px-5 py-2 font-semibold text-night-900 hover:bg-accent-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 min-w-11 rounded-xl bg-accent-400 px-5 py-2 font-semibold text-night-900 transition-colors hover:bg-accent-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent-400"
         >
           Buscar
         </button>

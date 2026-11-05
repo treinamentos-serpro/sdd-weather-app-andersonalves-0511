@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getWeather, searchCities } from '../services/weatherService';
+import { getWeather, searchCities, WeatherServiceError } from '../services/weatherService';
 import type { City, WeatherData } from '../types/weather';
 
 export type WeatherStatus = 'idle' | 'loading' | 'success' | 'error' | 'empty';
@@ -24,15 +24,21 @@ export function useWeather() {
   });
   const operationId = useRef(0);
   const lastOperation = useRef<Operation | null>(null);
+  const abortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     return () => {
       operationId.current += 1;
+      abortController.current?.abort();
+      abortController.current = null;
     };
   }, []);
 
   async function execute(operation: Operation): Promise<void> {
+    abortController.current?.abort();
     const id = ++operationId.current;
+    const controller = new AbortController();
+    abortController.current = controller;
     lastOperation.current = operation;
     setState((previous) => ({
       ...previous,
@@ -47,7 +53,7 @@ export function useWeather() {
       let city: City;
 
       if (operation.type === 'search') {
-        const cities = await searchCities(operation.name);
+        const cities = await searchCities(operation.name, controller.signal);
         if (id !== operationId.current) return;
 
         const firstCity = cities[0];
@@ -64,18 +70,30 @@ export function useWeather() {
         city = operation.city;
       }
 
-      const data = await getWeather(city);
+      const data = await getWeather(city, controller.signal);
       if (id !== operationId.current) return;
 
       setState((previous) => ({ ...previous, status: 'success', data }));
     } catch (error) {
-      if (id !== operationId.current) return;
+      if (
+        id !== operationId.current ||
+        (error instanceof WeatherServiceError && error.kind === 'cancelled')
+      ) {
+        return;
+      }
 
       setState((previous) => ({
         ...previous,
         status: 'error',
-        error: error instanceof Error ? error.message : 'Não foi possível obter os dados do clima.',
+        error:
+          error instanceof WeatherServiceError
+            ? error.message
+            : 'Não foi possível obter os dados do clima. Tente novamente.',
       }));
+    } finally {
+      if (abortController.current === controller) {
+        abortController.current = null;
+      }
     }
   }
 

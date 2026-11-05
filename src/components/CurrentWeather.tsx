@@ -20,13 +20,13 @@ function formatMetric(value: number | null | undefined, suffix: string): string 
 
 export default function CurrentWeather({ city, current, unit }: CurrentWeatherProps) {
   const headingId = useId();
-  const condition = getWeatherCondition(current.weatherCode);
-  const observedAt = formatLocalDateTime(current.observedAtLocal);
+  const condition = getWeatherCondition(current.weatherCode ?? null);
+  const observedAt = formatLocalDateTime(current.observedAtLocal ?? null);
   const metrics = [
-    { label: 'Umidade', value: formatMetric(current.relativeHumidity, '%') },
-    { label: 'Vento', value: formatMetric(current.windSpeedKmh, 'km/h') },
-    { label: 'Precipitação', value: formatMetric(current.precipitationMm, 'mm') },
-    { label: 'Pressão', value: formatMetric(current.pressureHpa, 'hPa') },
+    { label: 'Umidade', value: formatMetric(current.relativeHumidity ?? null, '%') },
+    { label: 'Vento', value: formatMetric(current.windSpeedKmh ?? null, 'km/h') },
+    { label: 'Precipitação', value: formatMetric(current.precipitationMm ?? null, 'mm') },
+    { label: 'Pressão', value: formatMetric(current.pressureHpa ?? null, 'hPa') },
   ];
 
   return (
@@ -46,7 +46,7 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
         </span>
         <div className="min-w-0">
           <p className="break-words text-5xl font-semibold tracking-tight text-sun sm:text-7xl">
-            {formatTemperature(current.temperatureC, unit)}
+            {formatTemperature(current.temperatureC ?? null, unit)}
           </p>
           <p className="mt-2 text-lg">{condition.label}</p>
         </div>

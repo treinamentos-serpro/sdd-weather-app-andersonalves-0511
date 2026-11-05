@@ -19,14 +19,12 @@ describe('formatTemperature', () => {
     [-40, 'fahrenheit', '-40,0 °F'],
     [26.46, 'celsius', '26,5 °C'],
     [-1.26, 'fahrenheit', '29,7 °F'],
-  ] as const)(
-    'formata %s °C na unidade %s com arredondamento e símbolo',
-    (celsius, unit, formatted) => {
-      expect(formatTemperature(celsius, unit)).toBe(formatted);
-    },
-  );
+  ] as const)('formata %s °C na unidade %s com arredondamento e símbolo', (celsius, unit, formatted) => {
+    expect(formatTemperature(celsius, unit)).toBe(formatted);
+  });
 
   it.each([
+    undefined,
     null,
     Number.NaN,
     Number.POSITIVE_INFINITY,

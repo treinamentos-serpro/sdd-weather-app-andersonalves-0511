@@ -23,6 +23,7 @@ describe('códigos WMO', () => {
   });
 
   it.each([
+    undefined,
     null,
     -1,
     4,

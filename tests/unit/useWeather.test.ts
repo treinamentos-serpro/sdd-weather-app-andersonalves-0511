@@ -70,7 +70,7 @@ describe('useWeather', () => {
 
     expect(result.current.status).toBe('loading');
     expect(result.current.query).toBe('São Paulo');
-    expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo');
+    expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo', expect.any(AbortSignal));
     expect(getWeather).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -78,7 +78,7 @@ describe('useWeather', () => {
       await request;
     });
 
-    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city);
+    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city, expect.any(AbortSignal));
     expect(result.current).toMatchObject({
       status: 'success',
       data: MOCK_WEATHER,
@@ -136,7 +136,7 @@ describe('useWeather', () => {
     await act(() => result.current.selectCity(otherCity));
 
     expect(searchCities).toHaveBeenCalledTimes(1);
-    expect(getWeather).toHaveBeenLastCalledWith(otherCity);
+    expect(getWeather).toHaveBeenLastCalledWith(otherCity, expect.any(AbortSignal));
     expect(result.current).toMatchObject({
       status: 'success',
       data: otherWeather,
@@ -145,26 +145,37 @@ describe('useWeather', () => {
     });
   });
 
-  it('expõe erro de busca e retry repete o termo uma vez sem tentativa automática', async () => {
-    vi.mocked(searchCities).mockRejectedValueOnce(new WeatherServiceError('Falha de rede.'));
+  it('expõe erro de rede offline e retry repete o termo uma vez', async () => {
+    const networkMessage =
+      'Não foi possível conectar à fonte de dados. Verifique sua conexão e tente novamente.';
+    vi.mocked(searchCities).mockRejectedValueOnce(
+      new WeatherServiceError(networkMessage, 'network'),
+    );
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('  São Paulo  '));
 
-    expect(result.current).toMatchObject({ status: 'error', error: 'Falha de rede.', data: null });
+    expect(result.current).toMatchObject({
+      status: 'error',
+      error: networkMessage,
+      data: null,
+    });
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(getWeather).not.toHaveBeenCalled();
 
     await act(() => result.current.retry());
 
     expect(searchCities).toHaveBeenCalledTimes(2);
-    expect(searchCities).toHaveBeenLastCalledWith('São Paulo');
+    expect(searchCities).toHaveBeenLastCalledWith('São Paulo', expect.any(AbortSignal));
     expect(result.current).toMatchObject({ status: 'success', error: null });
   });
 
   it('retry de forecast automático repete apenas o clima e mantém as cidades', async () => {
     vi.mocked(getWeather).mockRejectedValueOnce(
-      new WeatherServiceError('A requisição demorou demais.'),
+      new WeatherServiceError(
+        'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
+        'timeout',
+      ),
     );
     const { result } = renderHook(() => useWeather());
 
@@ -173,7 +184,7 @@ describe('useWeather', () => {
     expect(result.current).toMatchObject({
       status: 'error',
       cities: [city, otherCity],
-      error: 'A requisição demorou demais.',
+      error: 'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
       data: null,
     });
     expect(getWeather).toHaveBeenCalledTimes(1);
@@ -182,7 +193,7 @@ describe('useWeather', () => {
 
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(getWeather).toHaveBeenCalledTimes(2);
-    expect(getWeather).toHaveBeenLastCalledWith(city);
+    expect(getWeather).toHaveBeenLastCalledWith(city, expect.any(AbortSignal));
     expect(result.current).toMatchObject({ status: 'success', error: null });
   });
 
@@ -195,7 +206,7 @@ describe('useWeather', () => {
 
     await act(() => result.current.retry());
 
-    expect(getWeather).toHaveBeenLastCalledWith(otherCity);
+    expect(getWeather).toHaveBeenLastCalledWith(otherCity, expect.any(AbortSignal));
     expect(searchCities).toHaveBeenCalledTimes(1);
     expect(result.current.data).toBe(otherWeather);
   });
@@ -210,13 +221,15 @@ describe('useWeather', () => {
     });
     await act(() => result.current.search('Nova'));
 
+    expect(vi.mocked(searchCities).mock.calls[0][1]?.aborted).toBe(true);
+
     await act(async () => {
       pending.resolve([otherCity]);
       await oldRequest;
     });
 
     expect(result.current).toMatchObject({ status: 'success', query: 'Nova', data: MOCK_WEATHER });
-    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city);
+    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city, expect.any(AbortSignal));
   });
 
   it.each(['success', 'error'])('ignora forecast obsoleto que termina em %s', async (outcome) => {
@@ -228,6 +241,8 @@ describe('useWeather', () => {
       oldRequest = result.current.selectCity(city);
     });
     await act(() => result.current.selectCity(otherCity));
+
+    expect(vi.mocked(getWeather).mock.calls[0][1]?.aborted).toBe(true);
 
     await act(async () => {
       if (outcome === 'success') pending.resolve(MOCK_WEATHER);
@@ -247,6 +262,8 @@ describe('useWeather', () => {
       request = result.current.search('São Paulo');
     });
     unmount();
+
+    expect(vi.mocked(searchCities).mock.calls[0][1]?.aborted).toBe(true);
 
     pending.resolve([city]);
     await request;

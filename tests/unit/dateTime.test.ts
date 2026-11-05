@@ -14,6 +14,7 @@ describe('horário local da observação', () => {
   });
 
   it.each([
+    undefined,
     null,
     '',
     'inválido',

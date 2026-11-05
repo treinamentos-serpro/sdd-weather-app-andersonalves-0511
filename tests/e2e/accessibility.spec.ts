@@ -29,8 +29,10 @@ function contrast(element: Element, property: 'color' | 'borderTopColor' | 'outl
 
 test('teclado mantém foco útil depois da busca e do retry', async ({ page, weatherApi }) => {
   await page.goto('/');
+  const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' });
+  await expect(skipLink).toBeAttached();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', { name: 'Pular para o conteúdo' })).toBeFocused();
+  await expect(skipLink).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();
 
@@ -42,6 +44,7 @@ test('teclado mantém foco útil depois da busca e do retry', async ({ page, wea
   await expect(input).toHaveAccessibleDescription('Informe o nome de uma cidade.');
   await input.fill('São Paulo');
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('article')).toHaveCount(5);
   const focusTarget = page.locator('main:focus, input[name="city"]:focus');
   await expect(focusTarget).toHaveCount(1);
@@ -50,7 +53,9 @@ test('teclado mantém foco útil depois da busca e do retry', async ({ page, wea
   weatherApi.mode = 'error';
   await input.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('alert')).toContainText('HTTP 503');
+  await expect(page.getByRole('alert')).toContainText(
+    'A fonte de dados está temporariamente indisponível.',
+  );
   await page.getByRole('button', { name: 'Tentar novamente' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('article')).toHaveCount(5);

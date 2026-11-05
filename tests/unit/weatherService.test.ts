@@ -30,7 +30,7 @@ describe('fetchWithTimeout', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('aborta exatamente em 10 segundos e converte AbortError', async () => {
+  it('aborta exatamente em 10 segundos com uma mensagem clara de timeout', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const fetchMock = vi.fn((_url: string, options: RequestInit) => {
@@ -45,7 +45,9 @@ describe('fetchWithTimeout', () => {
     const request = fetchWithTimeout('https://api.open-meteo.com/');
     const rejection = expect(request).rejects.toMatchObject({
       name: 'WeatherServiceError',
-      message: 'A requisição demorou demais.',
+      kind: 'timeout',
+      message:
+        'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
     });
 
     await vi.advanceTimersByTimeAsync(9_999);
@@ -59,26 +61,42 @@ describe('fetchWithTimeout', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('converte falha de rede em WeatherServiceError e limpa o timer', async () => {
+  it('simula rede offline com fetch rejeitado e retorna uma mensagem amigável', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
-    const request = fetchWithTimeout('https://api.open-meteo.com/');
-
-    await expect(request).rejects.toBeInstanceOf(WeatherServiceError);
-    await expect(request).rejects.toThrow('Falha de rede.');
+    await expect(fetchWithTimeout('https://api.open-meteo.com/')).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'network',
+      message:
+        'Não foi possível conectar à fonte de dados. Verifique sua conexão e tente novamente.',
+    });
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('converte AbortError recebido antes do prazo e limpa o timer', async () => {
+  it('não classifica um cancelamento explícito como timeout', async () => {
     vi.useFakeTimers();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError')));
+    const controller = new AbortController();
+    const fetchMock = vi.fn((_url: string, options: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const request = fetchWithTimeout('https://api.open-meteo.com/', {
+      signal: controller.signal,
+    });
 
-    await expect(fetchWithTimeout('https://api.open-meteo.com/')).rejects.toThrow(
-      'A requisição demorou demais.',
-    );
+    const rejection = expect(request).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'cancelled',
+    });
+    controller.abort();
+    await rejection;
     expect(vi.getTimerCount()).toBe(0);
   });
 });
@@ -92,7 +110,7 @@ describe('searchCities', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('codifica o nome aparado e mapeia somente os campos de City', async () => {
+  it('codifica e decodifica Unicode, apóstrofo, hífen e ampersand no nome', async () => {
     const city = {
       id: 3448439,
       name: 'São Paulo',
@@ -109,11 +127,13 @@ describe('searchCities', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(searchCities('  São Paulo & região  ')).resolves.toEqual([city]);
+    const query = "São João-d'Aliança & região";
+    await expect(searchCities(`  ${query}  `)).resolves.toEqual([city]);
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-      'https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Paulo%20%26%20regi%C3%A3o&count=10&language=pt&format=json',
+      "https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Jo%C3%A3o-d'Alian%C3%A7a%20%26%20regi%C3%A3o&count=10&language=pt&format=json",
       { signal: expect.any(AbortSignal) },
     );
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('name')).toBe(query);
   });
 
   it('preserva cidades sem região ou fuso opcionais', async () => {
@@ -129,7 +149,25 @@ describe('searchCities', () => {
     await expect(searchCities('Cidade')).resolves.toEqual(cities);
   });
 
-  it.each([{}, { results: [] }])('retorna vazio quando não há resultados: %j', async (payload) => {
+  it('normaliza região e fuso nulos como campos opcionais ausentes', async () => {
+    const city = { id: 1, name: 'Cidade', country: 'Brasil', latitude: -23, longitude: -46 };
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ results: [{ ...city, admin1: null, timezone: null }] })),
+        ),
+    );
+
+    await expect(searchCities('Cidade')).resolves.toEqual([city]);
+  });
+
+  it.each([
+    {},
+    { results: [] },
+    { results: null },
+  ])('retorna vazio quando não há resultados: %j', async (payload) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(payload))));
 
     await expect(searchCities('Inexistente')).resolves.toEqual([]);
@@ -192,10 +230,13 @@ describe('getWeather', () => {
     current_units: {
       temperature_2m: '°C',
       wind_speed_10m: 'km/h',
+      precipitation: 'mm',
+      surface_pressure: 'hPa',
     },
     daily_units: {
       temperature_2m_min: '°C',
       temperature_2m_max: '°C',
+      precipitation_probability_max: '%',
     },
     current: {
       time: '2026-01-10T12:00',
@@ -203,12 +244,15 @@ describe('getWeather', () => {
       relative_humidity_2m: 65,
       weather_code: 3,
       wind_speed_10m: 12.5,
+      precipitation: 0.2,
+      surface_pressure: 1015,
     },
     daily: {
       time: ['2026-01-10', '2026-01-11', '2026-01-12', '2026-01-13', '2026-01-14'],
       weather_code: [3, 61, 2, 1, 0],
       temperature_2m_min: [20, 19.8, 20.1, 21, 21.4],
       temperature_2m_max: [28, 27.1, 29.2, 30, 31.3],
+      precipitation_probability_max: [40, 20, 60, 10, 0],
     },
   };
 
@@ -224,8 +268,9 @@ describe('getWeather', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       latitude: '-23.5475',
       longitude: '-46.63611',
-      current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
-      daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+      current:
+        'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation,surface_pressure',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
       timezone: 'auto',
       forecast_days: '5',
       temperature_unit: 'celsius',
@@ -239,14 +284,46 @@ describe('getWeather', () => {
       relativeHumidity: 65,
       weatherCode: 3,
       windSpeedKmh: 12.5,
+      precipitationMm: 0.2,
+      pressureHpa: 1015,
       observedAtLocal: '2026-01-10T12:00',
     });
     expect(weather.forecast).toEqual([
-      { date: '2026-01-10', weatherCode: 3, temperatureMinC: 20, temperatureMaxC: 28 },
-      { date: '2026-01-11', weatherCode: 61, temperatureMinC: 19.8, temperatureMaxC: 27.1 },
-      { date: '2026-01-12', weatherCode: 2, temperatureMinC: 20.1, temperatureMaxC: 29.2 },
-      { date: '2026-01-13', weatherCode: 1, temperatureMinC: 21, temperatureMaxC: 30 },
-      { date: '2026-01-14', weatherCode: 0, temperatureMinC: 21.4, temperatureMaxC: 31.3 },
+      {
+        date: '2026-01-10',
+        weatherCode: 3,
+        temperatureMinC: 20,
+        temperatureMaxC: 28,
+        precipitationProbability: 40,
+      },
+      {
+        date: '2026-01-11',
+        weatherCode: 61,
+        temperatureMinC: 19.8,
+        temperatureMaxC: 27.1,
+        precipitationProbability: 20,
+      },
+      {
+        date: '2026-01-12',
+        weatherCode: 2,
+        temperatureMinC: 20.1,
+        temperatureMaxC: 29.2,
+        precipitationProbability: 60,
+      },
+      {
+        date: '2026-01-13',
+        weatherCode: 1,
+        temperatureMinC: 21,
+        temperatureMaxC: 30,
+        precipitationProbability: 10,
+      },
+      {
+        date: '2026-01-14',
+        weatherCode: 0,
+        temperatureMinC: 21.4,
+        temperatureMaxC: 31.3,
+        precipitationProbability: 0,
+      },
     ]);
   });
 
@@ -265,7 +342,9 @@ describe('getWeather', () => {
     const request = getWeather(city);
     const rejection = expect(request).rejects.toMatchObject({
       name: 'WeatherServiceError',
-      message: 'A requisição demorou demais.',
+      kind: 'timeout',
+      message:
+        'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
     });
 
     await vi.advanceTimersByTimeAsync(9_999);
@@ -295,11 +374,17 @@ describe('getWeather', () => {
   it('preserva zero e campos ausentes ou nulos sem deslocar os índices', async () => {
     const partial = {
       ...payload,
-      current: { temperature_2m: 0, relative_humidity_2m: null },
+      current: {
+        temperature_2m: 0,
+        relative_humidity_2m: null,
+        precipitation: null,
+        surface_pressure: null,
+      },
       daily: {
         time: payload.daily.time,
         weather_code: [0, null, 61],
         temperature_2m_min: [0],
+        precipitation_probability_max: null,
       },
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(partial))));
@@ -311,14 +396,46 @@ describe('getWeather', () => {
       relativeHumidity: null,
       weatherCode: null,
       windSpeedKmh: null,
+      precipitationMm: null,
+      pressureHpa: null,
       observedAtLocal: null,
     });
     expect(weather.forecast).toEqual([
-      { date: '2026-01-10', weatherCode: 0, temperatureMinC: 0, temperatureMaxC: null },
-      { date: '2026-01-11', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
-      { date: '2026-01-12', weatherCode: 61, temperatureMinC: null, temperatureMaxC: null },
-      { date: '2026-01-13', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
-      { date: '2026-01-14', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
+      {
+        date: '2026-01-10',
+        weatherCode: 0,
+        temperatureMinC: 0,
+        temperatureMaxC: null,
+        precipitationProbability: null,
+      },
+      {
+        date: '2026-01-11',
+        weatherCode: null,
+        temperatureMinC: null,
+        temperatureMaxC: null,
+        precipitationProbability: null,
+      },
+      {
+        date: '2026-01-12',
+        weatherCode: 61,
+        temperatureMinC: null,
+        temperatureMaxC: null,
+        precipitationProbability: null,
+      },
+      {
+        date: '2026-01-13',
+        weatherCode: null,
+        temperatureMinC: null,
+        temperatureMaxC: null,
+        precipitationProbability: null,
+      },
+      {
+        date: '2026-01-14',
+        weatherCode: null,
+        temperatureMinC: null,
+        temperatureMaxC: null,
+        precipitationProbability: null,
+      },
     ]);
   });
 
@@ -379,11 +496,19 @@ describe('getWeather', () => {
     await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
   });
 
-  it.each([429, 500])('rejeita HTTP %i sem ler o corpo', async (status) => {
+  it.each([429, 500])('rejeita HTTP %i com erro tipado sem ler o corpo', async (status) => {
     const json = vi.fn();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, json }));
 
-    await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+    await expect(getWeather(city)).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'api',
+      status,
+      message:
+        status === 429
+          ? 'A fonte de dados está recebendo muitas consultas. Aguarde um pouco e tente novamente.'
+          : 'A fonte de dados está temporariamente indisponível. Tente novamente em instantes.',
+    });
     expect(json).not.toHaveBeenCalled();
   });
 });
