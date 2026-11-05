@@ -119,6 +119,14 @@ Celsius, vento em km/h e umidade em %. Datas e horário são locais ao fuso
 `America/Sao_Paulo`; o horário não tem offset nem sufixo `Z`.
 Os contratos aceitam `null` nos campos meteorológicos indisponíveis.
 
+## Busca de cidades
+
+[`SearchBar`](src/components/SearchBar.tsx) recebe `onSearch(city: string)` e
+`disabled?: boolean` (padrão `false`). O formulário envia pelo botão ou Enter,
+remove espaços externos e preserva os demais caracteres. Consultas vazias
+exibem orientação acessível sem disparar o callback. `disabled` bloqueia o
+campo, o botão e o envio; o componente não realiza chamadas à API.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**
