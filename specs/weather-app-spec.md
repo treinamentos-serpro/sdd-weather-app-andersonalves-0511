@@ -276,3 +276,4 @@ dias locais seguintes.
 2. Há requisitos legais ou de produto para política de privacidade, retenção de
    logs ou aviso específico sobre o envio da busca à Open-Meteo? Confirmar com
    as áreas responsáveis antes do lançamento.
+
