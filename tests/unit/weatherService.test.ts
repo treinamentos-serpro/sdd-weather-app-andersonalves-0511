@@ -30,7 +30,7 @@ describe('fetchWithTimeout', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('aborta exatamente em 10 segundos e converte AbortError', async () => {
+  it('aborta exatamente em 10 segundos com uma mensagem clara de timeout', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     const fetchMock = vi.fn((_url: string, options: RequestInit) => {
@@ -45,7 +45,9 @@ describe('fetchWithTimeout', () => {
     const request = fetchWithTimeout('https://api.open-meteo.com/');
     const rejection = expect(request).rejects.toMatchObject({
       name: 'WeatherServiceError',
-      message: 'A requisição demorou demais.',
+      kind: 'timeout',
+      message:
+        'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
     });
 
     await vi.advanceTimersByTimeAsync(9_999);
@@ -59,26 +61,42 @@ describe('fetchWithTimeout', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('converte falha de rede em WeatherServiceError e limpa o timer', async () => {
+  it('simula rede offline com fetch rejeitado e retorna uma mensagem amigável', async () => {
     vi.useFakeTimers();
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
-    const request = fetchWithTimeout('https://api.open-meteo.com/');
-
-    await expect(request).rejects.toBeInstanceOf(WeatherServiceError);
-    await expect(request).rejects.toThrow('Falha de rede.');
+    await expect(fetchWithTimeout('https://api.open-meteo.com/')).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'network',
+      message:
+        'Não foi possível conectar à fonte de dados. Verifique sua conexão e tente novamente.',
+    });
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('converte AbortError recebido antes do prazo e limpa o timer', async () => {
+  it('não classifica um cancelamento explícito como timeout', async () => {
     vi.useFakeTimers();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError')));
+    const controller = new AbortController();
+    const fetchMock = vi.fn((_url: string, options: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const request = fetchWithTimeout('https://api.open-meteo.com/', {
+      signal: controller.signal,
+    });
 
-    await expect(fetchWithTimeout('https://api.open-meteo.com/')).rejects.toThrow(
-      'A requisição demorou demais.',
-    );
+    const rejection = expect(request).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'cancelled',
+    });
+    controller.abort();
+    await rejection;
     expect(vi.getTimerCount()).toBe(0);
   });
 });
@@ -265,7 +283,9 @@ describe('getWeather', () => {
     const request = getWeather(city);
     const rejection = expect(request).rejects.toMatchObject({
       name: 'WeatherServiceError',
-      message: 'A requisição demorou demais.',
+      kind: 'timeout',
+      message:
+        'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.',
     });
 
     await vi.advanceTimersByTimeAsync(9_999);
@@ -379,11 +399,19 @@ describe('getWeather', () => {
     await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
   });
 
-  it.each([429, 500])('rejeita HTTP %i sem ler o corpo', async (status) => {
+  it.each([429, 500])('rejeita HTTP %i com erro tipado sem ler o corpo', async (status) => {
     const json = vi.fn();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, json }));
 
-    await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+    await expect(getWeather(city)).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'api',
+      status,
+      message:
+        status === 429
+          ? 'A fonte de dados está recebendo muitas consultas. Aguarde um pouco e tente novamente.'
+          : 'A fonte de dados está temporariamente indisponível. Tente novamente em instantes.',
+    });
     expect(json).not.toHaveBeenCalled();
   });
 });

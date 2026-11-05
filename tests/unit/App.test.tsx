@@ -63,8 +63,8 @@ describe('App com useWeather', () => {
     fireEvent.click(screen.getByRole('button', { name: '°C' }));
     expect(region).toHaveTextContent('26,4 °C');
     expect(within(screen.getByRole('main')).getAllByText(/°C$/)).toHaveLength(11);
-    expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo');
-    expect(getWeather).toHaveBeenCalledExactlyOnceWith(MOCK_WEATHER.city);
+    expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo', expect.any(AbortSignal));
+    expect(getWeather).toHaveBeenCalledExactlyOnceWith(MOCK_WEATHER.city, expect.any(AbortSignal));
   });
 
   it('permite trocar unidade durante loading sem reiniciar a consulta', async () => {
@@ -120,10 +120,14 @@ describe('App com useWeather', () => {
   });
 
   it('mostra a mensagem do serviço e retry repete a busca original', async () => {
-    vi.mocked(searchCities).mockRejectedValueOnce(new WeatherServiceError('Falha de rede.'));
+    const networkMessage =
+      'Não foi possível conectar à fonte de dados. Verifique sua conexão e tente novamente.';
+    vi.mocked(searchCities).mockRejectedValueOnce(
+      new WeatherServiceError(networkMessage, 'network'),
+    );
     search('São Paulo');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(networkMessage);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Cidade' }), {
@@ -133,18 +137,18 @@ describe('App com useWeather', () => {
 
     expect(await screen.findByRole('region', { name: 'São Paulo' })).toBeInTheDocument();
     expect(searchCities).toHaveBeenCalledTimes(2);
-    expect(searchCities).toHaveBeenLastCalledWith('São Paulo');
+    expect(searchCities).toHaveBeenLastCalledWith('São Paulo', expect.any(AbortSignal));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('retry de erro no forecast repete apenas o clima e mantém a unidade', async () => {
-    vi.mocked(getWeather).mockRejectedValueOnce(
-      new WeatherServiceError('A requisição demorou demais.'),
-    );
+    const timeoutMessage =
+      'A consulta excedeu o limite de 10 segundos. Verifique sua conexão e tente novamente.';
+    vi.mocked(getWeather).mockRejectedValueOnce(new WeatherServiceError(timeoutMessage, 'timeout'));
     fireEvent.click(screen.getByRole('button', { name: '°F' }));
     search('São Paulo');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('A requisição demorou demais.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(timeoutMessage);
     fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
     expect(await screen.findByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
