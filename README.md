@@ -102,6 +102,116 @@ Decisões-chave:
 
 ---
 
+## Mock para desenvolvimento da UI
+
+Os contratos estão em [`src/types/weather.ts`](src/types/weather.ts). Para
+desenvolver componentes sem consultar a API, importe o objeto tipado:
+
+```ts
+import { MOCK_WEATHER } from './mocks/weather';
+```
+
+O exemplo considera um arquivo na raiz de `src/`. O mock em
+[`src/mocks/weather.ts`](src/mocks/weather.ts) contém São Paulo, clima atual e
+cinco dias consecutivos, de 10 a 14/01/2026, com condições WMO variadas.
+São dados fictícios e fixos, não uma previsão atualizada. Temperaturas estão em
+Celsius, vento em km/h e umidade em %. Datas e horário são locais ao fuso
+`America/Sao_Paulo`; o horário não tem offset nem sufixo `Z`.
+Os contratos aceitam `null` nos campos meteorológicos indisponíveis.
+
+## Busca de cidades
+
+[`SearchBar`](src/components/SearchBar.tsx) recebe `onSearch(city: string)` e
+`disabled?: boolean` (padrão `false`). O formulário envia pelo botão ou Enter,
+remove espaços externos e preserva os demais caracteres. Consultas vazias
+exibem orientação acessível sem disparar o callback. `disabled` bloqueia o
+campo, o botão e o envio; o componente não realiza chamadas à API.
+
+## Controle de unidade
+
+[`UnitToggle`](src/components/UnitToggle.tsx) recebe `unit: Unit` e
+`onChange(unit: Unit)`. O componente é controlado: o pai mantém a unidade e
+atualiza a prop após o callback. Os botões °C/°F expõem `aria-pressed` dentro
+do grupo “Unidade de temperatura”. Use Tab/Shift+Tab para navegar e
+Enter/Espaço para selecionar. Selecionar a unidade já ativa não emite mudança.
+O controle não converte dados nem faz requisições.
+
+## Clima atual
+
+[`CurrentWeather`](src/components/CurrentWeather.tsx) recebe `city`, `current`
+e `unit`. O hero exibe temperatura, ícone WMO decorativo, condição em pt-BR,
+umidade (%), vento (km/h), precipitação (mm), pressão (hPa) e horário local.
+`current.precipitationMm` e `current.pressureHpa` são opcionais para manter
+compatibilidade com dados existentes. Ausências e valores não finitos aparecem
+como “Indisponível”, sem substituir por zero.
+
+Os helpers [`temperature`](src/lib/temperature.ts) e
+[`weatherCodes`](src/lib/weatherCodes.ts) podem ser reutilizados na previsão.
+A temperatura é convertida só na apresentação, com uma casa decimal.
+[`dateTime`](src/lib/dateTime.ts) formata a observação ISO local sem aplicar
+o fuso do dispositivo. O componente não acessa a API; loading, erro e vazio
+da consulta ficam a cargo da composição da tela.
+
+## Previsão diária
+
+[`ForecastList`](src/components/ForecastList.tsx) recebe `forecast: ForecastDay[]`
+e `unit: Unit`. Use `<ForecastList forecast={MOCK_WEATHER.forecast} unit={unit} />`.
+O grid usa duas colunas no mobile, três em `sm` e cinco em `lg`.
+A lista preserva as datas normalizadas recebidas; lista vazia mostra
+“Previsão indisponível”, sem inventar dias.
+
+[`ForecastCard`](src/components/ForecastCard.tsx) recebe `day: ForecastDay` e
+`unit: Unit`. Cada card exibe dia da semana e data, ícone decorativo, condição,
+máxima, mínima e probabilidade de chuva. O helper
+[`formatDay`](src/lib/format.ts) não depende do relógio ou fuso do dispositivo.
+`precipitationProbability` é opcional, de 0 a 100 (%); ausências ou valores
+inválidos aparecem como “Indisponível”. O mock inclui probabilidades de exemplo.
+Loading e erro da consulta continuam sob responsabilidade da composição da tela.
+
+## Estados da interface
+
+- [`LoadingState`](src/components/states/LoadingState.tsx): `role="status"`,
+  mensagem padrão de carregamento e prop opcional `message`.
+- [`ErrorState`](src/components/states/ErrorState.tsx): recebe `message: string`
+  e `onRetry: () => void`; anuncia a mensagem com `role="alert"` e oferece
+  “Tentar novamente”, acessível por teclado, sem retry automático.
+- [`EmptyState`](src/components/states/EmptyState.tsx): `role="status"` com
+  título e dica; props opcionais `title` e `hint` permitem personalizar o
+  estado inicial ou a ausência de resultados.
+
+A composição escolhe o estado e fornece mensagens específicas da operação.
+Os componentes não fazem requisições nem alteram o foco automaticamente.
+
+## Executar a UI com mock
+
+Execute `pnpm dev` para abrir a tela de [`App`](src/App.tsx), sem chamadas à API.
+Busque **São Paulo** (também aceita `sao paulo`) para ver o clima e os cinco
+dias após 600 ms de loading simulado. Outras cidades mostram o estado vazio.
+O seletor **Prévia do estado (demonstração)** permite inspecionar
+idle/loading/empty/error/success; a prévia de loading permanece até escolher
+outro estado. Retry repete a última busca, inicialmente São Paulo.
+Trocar a prévia cancela uma busca simulada pendente.
+
+A unidade começa em Celsius, permanece ao trocar estados ou buscar novamente
+e só afeta a renderização. O mock não é renomeado conforme o texto pesquisado.
+O bootstrap está em [`main.tsx`](src/main.tsx) e os estilos Tailwind em
+[`styles/index.css`](src/styles/index.css). Esta etapa não implementa
+geocodificação, seleção de localidades ou dados meteorológicos ao vivo.
+
+## Acessibilidade e responsividade
+
+A revisão da UI mock corrigiu contraste dos limites do input/select (mínimo
+3:1), foco no campo após busca vazia e recuperação do foco no conteúdo quando
+loading/retry deixam o `body` ativo. A composição não rouba foco de outro
+controle em uso. O conteúdo principal tem outline visível e link de salto.
+
+[`accessibility.spec.ts`](tests/e2e/accessibility.spec.ts) verifica teclado,
+contraste de textos (mínimo 4,5:1), bordas/foco (3:1), movimento reduzido,
+todos os estados e textos longos nas larguras 320, 375, 768, 1024, 1440 e
+1920 px. O grid preserva 2/3/5 colunas e os controles têm alvos de ao menos
+44 × 44 px. Continua recomendada validação manual com leitor de tela; os
+testes não constituem certificação completa WCAG.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

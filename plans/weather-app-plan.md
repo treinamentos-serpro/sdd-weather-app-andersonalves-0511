@@ -35,6 +35,18 @@ Essa separação isola efeitos colaterais na fronteira HTTP e no ciclo de vida R
 
 ## Tech Stack
 
+Na etapa mock, `App.tsx` compõe header, busca, unidade, estados, clima atual,
+previsão e rodapé com atribuição. `hooks/useMockWeather.ts` encapsula uma
+espera simulada de 600 ms, cancelada ao desmontar ou trocar a prévia.
+Nenhum serviço HTTP é chamado. A busca aceita apenas o nome completo da cidade
+do mock (trim, sem distinguir acentos/caixa); o nome original não é renomeado.
+Retry reaplica o último termo, inicialmente São Paulo. O seletor de prévia
+exibe os cinco estados sem agendar transições automáticas.
+`unit` vive em `App`, independente da operação simulada, e é passado aos
+componentes que convertem os valores Celsius apenas na renderização.
+`main.tsx` inicializa React com StrictMode e importa `styles/index.css`
+com as diretivas Tailwind. O bootstrap reporta explicitamente raiz ausente.
+
 - **TypeScript strict, React e Vite:** stack definida pelo projeto; tipos e componentes simples para a aplicação cliente.
 - **Tailwind CSS:** estilos responsivos e tema do produto, preservando controles acessíveis e alvos de toque de pelo menos 44 × 44 CSS px.
 - **Fetch API:** chamadas HTTPS sem chave de usuário; `AbortController` para timeout e cancelamento.
@@ -55,9 +67,13 @@ src/
     SearchForm.tsx
     LocationResults.tsx
     CurrentWeather.tsx
-    DailyForecast.tsx
+    ForecastList.tsx
+    ForecastCard.tsx
     TemperatureUnitToggle.tsx
-    StatusMessage.tsx
+    states/
+      LoadingState.tsx
+      ErrorState.tsx
+      EmptyState.tsx
     SourceAttribution.tsx
   hooks/
     useWeatherSearch.ts
@@ -68,7 +84,8 @@ src/
     weather.ts
   lib/
     temperature.ts
-    weatherCode.ts
+    format.ts
+    weatherCodes.ts
     dateTime.ts
     normalizeWeather.ts
 tests/
@@ -76,7 +93,7 @@ tests/
   e2e/
 ```
 
-`main.tsx` inicializa React; `App.tsx` compõe a página. `lib/temperature.ts` converte e formata temperaturas; `lib/weatherCode.ts` mapeia WMO para pt-BR; `lib/dateTime.ts` trata datas locais e formatação; `lib/normalizeWeather.ts` transforma a resposta meteorológica validada em condições atuais e cinco entradas diárias. A validação do payload externo e o mapeamento simples da geocodificação permanecem junto aos respectivos serviços, sem criar um arquivo para cada pequena transformação.
+`main.tsx` inicializa React; `App.tsx` compõe a página. `lib/temperature.ts` converte e formata temperaturas; `lib/weatherCodes.ts` mapeia WMO para rótulos pt-BR e ícones decorativos; `lib/dateTime.ts` trata datas locais e formatação; `lib/normalizeWeather.ts` transforma a resposta meteorológica validada em condições atuais e cinco entradas diárias. A validação do payload externo e o mapeamento simples da geocodificação permanecem junto aos respectivos serviços, sem criar um arquivo para cada pequena transformação.
 
 As pastas propostas são fronteiras de responsabilidade, não novas camadas de execução. Não criar arquivos vazios preventivamente: introduzir cada módulo quando a tarefa correspondente exigir. Localizar os testes seguindo a organização já adotada pelo repositório, sem duplicar convenções.
 
@@ -102,6 +119,8 @@ interface CurrentWeather {
   weatherCode: number | null;
   relativeHumidity: number | null;
   windSpeedKmh: number | null;
+  precipitationMm?: number | null;
+  pressureHpa?: number | null;
   observedAtLocal: string | null;
 }
 
@@ -110,6 +129,7 @@ interface ForecastDay {
   weatherCode: number | null;
   temperatureMinC: number | null;
   temperatureMaxC: number | null;
+  precipitationProbability?: number | null;
 }
 
 interface WeatherData {
@@ -121,6 +141,28 @@ interface WeatherData {
 ```
 
 Resultados da busca são identificados por identidade geográfica — coordenadas e, quando disponível, o ID da fonte — e não pelo texto do rótulo. `admin1` é opcional; não renderizar região vazia. `weatherCode` é interpretado por um mapeamento local de códigos WMO para rótulos em pt-BR, com fallback explícito de indisponibilidade para códigos não reconhecidos. Valores de temperatura permanecem em Celsius e são arredondados a uma casa decimal depois da conversão para exibição.
+
+Precipitação (`precipitationMm`, mm) e pressão à superfície (`pressureHpa`, hPa)
+são opcionais para preservar os consumidores existentes. A UI mostra
+“Indisponível” para ausência, `null` ou número não finito. Quando a integração
+for implementada, mapear `current.precipitation` e `current.surface_pressure`
+sem confundir pressão à superfície com pressão ao nível do mar. O mock inclui
+essas métricas; esta etapa não adiciona acesso à API.
+
+`ForecastDay.precipitationProbability` é opcional, em %, para compatibilidade
+com previsões existentes. Ausência, `null`, valores não finitos ou fora de
+0–100 são exibidos como “Indisponível”. Na futura integração, mapear
+`daily.precipitation_probability_max` por data; não deduzir probabilidade do
+código WMO ou da quantidade de precipitação.
+
+`ForecastList` recebe `forecast: ForecastDay[]` normalizado e `unit: Unit`;
+preserva a ordem recebida e delega cada entrada a `ForecastCard`, com props
+`day: ForecastDay` e `unit: Unit`. A normalização das cinco datas continua
+na camada de dados. Lista vazia mostra mensagem explícita. O grid usa
+`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5`.
+`lib/format.ts` fornece `formatDay(date)` (dia da semana e `dd/MM/yyyy` em
+pt-BR, independente do fuso do dispositivo) e a formatação da probabilidade.
+Não depende do relógio global nem tenta inferir “hoje”.
 
 ## Data Flow
 
@@ -403,7 +445,27 @@ Campos meteorológicos individuais inválidos, como valores não finitos ou cód
 
 Mensagens são em pt-BR e específicas da região de busca ou clima. Anunciar carregamento e ausência de resultados com `role="status"` e erros com `role="alert"`, sem anúncios duplicados. Manter botões de retry acessíveis por teclado e foco visível, preservando o formulário e as opções válidas para recuperação. Exibir conteúdo externo como texto, nunca HTML (RNF-03, RNF-06).
 
+Os componentes de apresentação em `components/states/` são independentes da
+consulta: `LoadingState` recebe `message?: string`, com padrão
+“Carregando dados do clima…”; `ErrorState` recebe `message: string` e
+`onRetry: () => void`; `EmptyState` recebe `title?: string` e `hint?: string`,
+com padrões “Nenhuma cidade encontrada” e “Tente buscar outra cidade ou
+verifique o nome informado.”. O hook/composição fornece a mensagem específica
+do erro (incluindo orientação para 429); os componentes não classificam erros,
+acessam a rede, movem o foco ou agendam retry.
+
 ## Testing Strategy
+
+### Revisão de acessibilidade da UI mock
+
+Ao terminar loading, se o foco ficou no `body` porque o campo foi desabilitado
+ou o retry foi desmontado, a composição foca o conteúdo principal com outline
+visível. Não mover foco se a pessoa estiver em outro controle. Na validação
+vazia, focar o input associado à mensagem. Input e select usam bordas sólidas
+com contraste mínimo de 3:1; textos normais mantêm ao menos 4,5:1.
+Testar teclado, movimento reduzido e todos os estados de 320 a 1920 px,
+incluindo nomes e mensagens longos, com Playwright. Isso não substitui
+validação manual com leitor de tela.
 
 ### Isolamento por camada
 

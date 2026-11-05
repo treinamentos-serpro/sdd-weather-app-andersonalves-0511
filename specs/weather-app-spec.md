@@ -14,6 +14,16 @@ dias locais seguintes.
 
 ## Functional Requirements
 
+### Etapa de desenvolvimento com mock
+
+Antes da integração HTTP, a tela pode usar `MOCK_WEATHER`, com aviso explícito
+de dados fictícios e fixos. A busca simulada reconhece São Paulo sem distinguir
+acentos/maiúsculas, apresenta loading e retorna vazio para outras cidades.
+Um seletor de prévia permite inspecionar idle/loading/empty/error/success;
+erros de demonstração são identificados como simulados e oferecem retry.
+A unidade é estado da UI, preservada entre estados e buscas. Essa demonstração
+não substitui o fluxo final de geocodificação e seleção de localidades.
+
 - **RF-01 — Buscar cidades:** permitir pesquisar por nome de cidade. Remover
   espaços no início e no fim, aceitar nomes Unicode (incluindo acentos,
   apóstrofos e hífens) e pesquisar somente após envio explícito. Uma consulta
@@ -23,13 +33,16 @@ dias locais seguintes.
   deve ser selecionável e identificar uma localidade de forma inequívoca pelos
   dados de localização retornados, mesmo que os rótulos sejam iguais.
 - **RF-03 — Consultar clima atual:** para a localidade selecionada, exibir
-  temperatura, condição meteorológica, umidade relativa e velocidade do vento.
+  temperatura, ícone e condição meteorológica, umidade relativa, velocidade do
+  vento, precipitação e pressão atmosférica. Precipitação e pressão ausentes
+  são identificadas como “Indisponível”, sem inventar valores.
   Exibir também o horário de referência informado pela fonte, no fuso local da
   cidade.
 - **RF-04 — Consultar previsão:** exibir cinco entradas diárias para a
   localidade selecionada: hoje no fuso local da cidade e os quatro dias locais
   seguintes. Cada entrada apresenta condição meteorológica e temperaturas
-  mínima e máxima.
+  mínima e máxima, ícone e probabilidade de chuva em %. Quando a probabilidade
+  estiver ausente, exibir “Indisponível”, sem presumir 0%.
 - **RF-05 — Alternar temperatura:** permitir alternar entre Celsius (°C) e
   Fahrenheit (°F). A unidade deve valer para todas as temperaturas atuais e
   previstas. O padrão é °C; a escolha permanece até a página ser recarregada,
@@ -104,7 +117,7 @@ dias locais seguintes.
     selecionada, inclusive quando outra opção tem rótulo idêntico
 - **CA-03a (RF-03)**
   - **Given** a consulta atual retorna temperatura, condição, umidade,
-    velocidade do vento e horário de referência
+    velocidade do vento, precipitação, pressão e horário de referência
   - **When** a consulta termina
   - **Then** a interface mostra a cidade, todos os campos recebidos, unidades
     especificadas e horário convertido para o fuso local informado para a cidade
@@ -118,7 +131,7 @@ dias locais seguintes.
     2026-01-10 a 2026-01-14
   - **When** a previsão é exibida
   - **Then** há cinco entradas nessas datas, cada uma com condição e
-    temperaturas mínima e máxima
+    temperaturas mínima e máxima e probabilidade de chuva quando fornecida
 - **CA-04b (RF-04)**
   - **Given** um ou mais dias ou campos da previsão não estão disponíveis
   - **When** a previsão é exibida
@@ -178,7 +191,7 @@ dias locais seguintes.
 - **RNF-01 — Localização:** toda a interface, mensagens, condições
   meteorológicas e datas usam pt-BR. Datas são formatadas como `dd/MM/yyyy` e
   horários no formato de 24 horas, ambos no fuso da cidade; umidade usa % e
-  velocidade do vento usa km/h.
+  velocidade do vento usa km/h, precipitação usa mm e pressão usa hPa.
 - **RNF-02 — Responsividade:** em viewports de 320 a 1920 px, não há rolagem
   horizontal do documento. Conteúdo mais extenso pode usar rolagem vertical.
 - **RNF-03 — Acessibilidade:** cumprir WCAG 2.2 nível AA. Todos os controles têm
@@ -276,4 +289,3 @@ dias locais seguintes.
 2. Há requisitos legais ou de produto para política de privacidade, retenção de
    logs ou aviso específico sobre o envio da busca à Open-Meteo? Confirmar com
    as áreas responsáveis antes do lançamento.
-

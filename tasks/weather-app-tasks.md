@@ -119,6 +119,18 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 
 ## Detalhamento A — Fundação e busca
 
+### Integração intermediária da UI com mock
+
+- Implementar `src/App.tsx`, `src/main.tsx`, `src/styles/index.css` e
+  `src/hooks/useMockWeather.ts` conforme a etapa mock do plano.
+- Header com marca, SearchBar e UnitToggle; conteúdo exclusivo por estado;
+  sucesso com clima atual e cinco dias; rodapé identifica fonte e demonstração.
+- Prévia explícita dos cinco estados, busca simulada e retry sem acesso à API.
+- Unidade persiste durante loading, erro, vazio e novas buscas; nenhuma segunda
+  cópia Fahrenheit dos dados é armazenada.
+- Testes cobrem estados, busca, retry, cancelamento e conversão de todos os
+  valores; validar lint/build/test. A integração HTTP fica para etapa posterior.
+
 ### T-01 — Definir os contratos de domínio
 
 - **Descrição:** Declarar os tipos compartilhados de localidade, clima,
@@ -353,7 +365,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     “Chuva fraca”; todos os demais códigos suportados também têm rótulo pt-BR.
   - Código não mapeado e `null` retornam exatamente “Indisponível”.
 - **Dependências:** T-01.
-- **Arquivos prováveis:** `src/lib/weatherCode.ts`
+- **Arquivos prováveis:** `src/lib/weatherCodes.ts`
 - **Tipo:** Data
 - **Rastreabilidade:** RF-03–04; CA-03a–b, CA-04a–b; RNF-01.
 
@@ -365,7 +377,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     T-15 e percorrem a tabela para confirmar nenhum rótulo vazio.
   - Código fora da tabela e `null` retornam exatamente “Indisponível”.
 - **Dependências:** T-15.
-- **Arquivos prováveis:** `tests/unit/weatherCode.test.ts`
+- **Arquivos prováveis:** `tests/unit/weatherCodes.test.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-03–04; CA-03a–b, CA-04a–b.
 
@@ -484,7 +496,8 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Recebe dados normalizados e unidade por props, sem acessar rede ou estado
     global.
   - Renderização contém nome/país, temperatura, condição, umidade com `%`, vento
-    com `km/h` e horário de referência local.
+    com `km/h`, precipitação com `mm`, pressão com `hPa`, ícone WMO e horário de
+    referência local. Precipitação e pressão são opcionais no contrato.
   - Para cada prop nula, renderiza “Indisponível” no campo correspondente e
     mantém visíveis os demais campos não nulos.
 - **Dependências:** T-01, T-13, T-15, T-21.
@@ -498,7 +511,8 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   componente atual.
 - **Critérios de aceite:**
   - Teste de sucesso verifica texto e unidades exatos para cidade, condição,
-    temperatura, umidade, vento e horário.
+    temperatura, umidade, vento, precipitação, pressão e horário; ícone
+    decorativo não duplica o anúncio da condição.
   - Fixture com cada campo individualmente nulo verifica “Indisponível” naquele
     campo e preservação dos outros valores.
   - Fixtures Celsius/Fahrenheit conferem a temperatura renderizada pela unidade
@@ -516,11 +530,13 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Recebe previsão normalizada e unidade por props, sem acesso à rede ou estado
     global.
   - DOM contém exatamente cinco entradas em ordem, com data, condição, mínima e
-    máxima em cada uma.
+    máxima e probabilidade de chuva em cada uma. Ícones WMO são decorativos,
+    acompanhados pela condição textual.
   - Data/campo nulo correspondente exibe “Indisponível”; entradas válidas
     permanecem visíveis.
 - **Dependências:** T-01, T-13, T-15, T-17, T-21.
-- **Arquivos prováveis:** `src/components/DailyForecast.tsx`
+- **Arquivos prováveis:** `src/components/ForecastList.tsx`,
+  `src/components/ForecastCard.tsx`, `src/lib/format.ts`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-04–05; CA-04a–b, CA-05a–c; RNF-01, RNF-03.
 
@@ -529,13 +545,14 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 - **Descrição:** Verificar número e conteúdo dos dias e apresentação parcial.
 - **Critérios de aceite:**
   - Asserções verificam cinco entradas, sua ordem e presença de condição,
-    mínima/máxima.
+    mínima/máxima e probabilidade de chuva (incluindo 0%, 100% e ausências).
   - Fixture parcial verifica “Indisponível” para cada lacuna sem remover dias ou
     valores válidos.
   - Fixtures Celsius/Fahrenheit verificam unidade e valor renderizados em cada
     mínima/máxima.
 - **Dependências:** T-25.
-- **Arquivos prováveis:** `tests/unit/DailyForecast.test.tsx`
+- **Arquivos prováveis:** `tests/unit/ForecastList.test.tsx`,
+  `tests/unit/ForecastCard.test.tsx`, `tests/unit/format.test.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-04–05; CA-04a–b, CA-05a–c.
 
@@ -662,7 +679,10 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Botão de retry tem nome acessível e invoca somente o callback fornecido; não
     agenda outra tentativa por conta própria.
 - **Dependências:** T-01.
-- **Arquivos prováveis:** `src/components/StatusMessage.tsx`
+- **Arquivos prováveis:** `src/components/states/LoadingState.tsx`,
+  `src/components/states/ErrorState.tsx`, `src/components/states/EmptyState.tsx`.
+  Mensagens específicas de erro vêm da composição por `message`; retry usa
+  `onRetry`. Título e dica do vazio são personalizáveis por `title` e `hint`.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-07; CA-07a–c; RNF-01, RNF-03–04, RNF-07.
 
@@ -677,7 +697,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Clique no retry chama callback uma vez; avanço de timers sem interação não
     produz nova chamada.
 - **Dependências:** T-34.
-- **Arquivos prováveis:** `tests/unit/StatusMessage.test.tsx`
+- **Arquivos prováveis:** `tests/unit/States.test.tsx`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-07; CA-07a–c; RNF-03.
 
@@ -729,7 +749,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     visível via teclado.
 - **Dependências:** T-23, T-25, T-30.
 - **Arquivos prováveis:** `src/components/CurrentWeather.tsx`,
-  `src/components/DailyForecast.tsx`
+  `src/components/ForecastList.tsx`, `src/components/ForecastCard.tsx`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-06; CA-06; RNF-02–03.
 
@@ -737,6 +757,10 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 
 - **Descrição:** Ajustar composição e espaçamento do shell da página em
   viewports desktop e mobile.
+- **Revisão da UI mock:** corrigir perda de foco ao encerrar loading/retry,
+  sem roubar foco de outro controle; foco no input após validação vazia.
+  Validar contraste dos limites dos campos ≥ 3:1 e textos ≥ 4,5:1, movimento
+  reduzido e todos os estados com textos longos entre 320 e 1920 px.
 - **Critérios de aceite:**
   - Em 320, 375, 768, 1024, 1440 e 1920 CSS px, shell completo com sucesso e erro
     satisfaz `documentElement.scrollWidth <= clientWidth`.
