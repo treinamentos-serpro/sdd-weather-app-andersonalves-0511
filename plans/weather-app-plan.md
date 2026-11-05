@@ -386,15 +386,77 @@ Mensagens são em pt-BR e específicas da região de busca ou clima. Anunciar ca
 | `components` | Renderizar props de cada estado e observar callbacks por ações acessíveis. | Testa conteúdo, teclado e mensagens sem conhecer HTTP ou detalhes do hook. |
 | Fluxo completo | Playwright com respostas HTTP controladas. | Confirma que as camadas estão conectadas corretamente nos cenários da spec. |
 
-### Cobertura de requisitos
+### Vitest — funções puras, serviços, hooks e componentes
 
-- **Unitários (Vitest):** aparar busca e evitar chamada vazia; codificação Unicode; normalização de localização e identidade de homônimos; conversão C/F e arredondamento a uma casa; mapeamento de códigos meteorológicos; normalização de valores ausentes e dias previstos; tratamento de resposta inválida, timeout e falha HTTP.
-- **Componentes (Testing Library):** estados idle/loading/empty/error/success, retry explícito, anúncios semânticos, navegação por teclado, nomes acessíveis e unidade consistente em todas as temperaturas.
-- **E2E (Playwright):** busca, seleção de localidade, clima atual, cinco dias, troca de unidade sem nova consulta e atribuição Open-Meteo; simular resposta vazia, falha, timeout e respostas fora de ordem.
-- **Responsividade e acessibilidade:** testar larguras 320, 375, 768, 1024, 1440 e 1920 px, sem rolagem horizontal; verificar os alvos de toque e complementar automação com revisão manual por teclado/leitor de tela e contraste (CA-06, RNF-02–03).
-- Validar que o indicador aparece em até 200 ms e que requisições expiram em até 10 segundos. Testes com APIs devem usar respostas controladas, sem depender de disponibilidade externa.
+**Funções puras de `lib`:**
+
+- Conversão: `0 °C → 32,0 °F`, `100 °C → 212,0 °F` e `-40 °C → -40,0 °F`; valores fracionários, negativos e arredondamento ao décimo somente na exibição. Verificar separador decimal pt-BR, unidade e `null → Indisponível`, sem coerção para zero (CA-05a–c).
+- Mapeamento de códigos WMO para rótulos pt-BR, incluindo código desconhecido.
+- Normalização: preservar campos válidos, manter ausências como `null` e produzir exatamente cinco datas ordenadas. Cobrir dia ausente no meio da série, arrays desiguais e temperaturas iguais a zero (CA-03b, CA-04a–b).
+- Datas: cidade em data diferente da máquina, passagem de mês/ano e horário de verão, com relógio fixo e fuso explícito. Confirmar `dd/MM/yyyy` e horário de 24 horas, sem deslocar datas ISO locais.
+
+**Serviços com mock de `fetch`:**
+
+- Verificar método e HTTPS, parâmetros de geocoding e forecast, Unicode após decodificação da URL, coordenadas da opção selecionada, unidades, `timezone=auto` e `forecast_days=5` (CA-01a–b, CA-02).
+- Simular JSON de sucesso, geocoding sem `results`/com lista vazia e respostas parciais. Comparar a saída com os contratos `City[]` e `WeatherData`, não só a quantidade de chamadas.
+- Simular rejeição de rede, HTTP 429/500, payload de erro, JSON malformado, estrutura/fuso inválidos e unidades incompatíveis. Exigir erro tipado, nunca lista vazia ou dados fictícios.
+- Com timers falsos, manter a promessa pendente: confirmar que continua carregando antes do prazo e termina em timeout ao atingir 10.000 ms. Cobrir também headers recebidos com corpo pendente; verificar abort, limpeza dos timers e ausência de retry automático.
+
+**Hooks com Testing Library (`renderHook`):**
+
+- Validar todas as transições documentadas; busca vazia orienta sem chamada e digitação sem submissão não consulta (CA-01c).
+- Retry repete a consulta/cidade capturada, mesmo com edição posterior do campo; nenhuma repetição automática (CA-07c).
+- Controlar promessas para resolver A depois de B e verificar que sucesso, erro e finalização de A não alteram B (CA-07d). Cobrir nova busca e desmontagem durante uma chamada.
+- Trocar unidade durante carregamento e entre cidades: preservar a preferência e converter a resposta recebida sem novo request. Recriar a página inicia Celsius.
+
+**Componentes com Testing Library:**
+
+| Estado | Verificações observáveis |
+|---|---|
+| `idle` | Orientação inicial e campo com label; nenhum spinner ou erro. |
+| `loading` | Indicador com `role="status"`, região em carregamento e dados substituídos não apresentados como atuais. |
+| `error` | Mensagem pt-BR com `role="alert"` e botão de retry que aciona o callback correto. |
+| `empty` | Ausência de cidades anunciada, consulta preservada/editável e nenhum cartão meteorológico fictício. |
+| `success` | Nome/país/região opcional, condições atuais, cinco datas, unidades e link exato para `https://open-meteo.com/`. |
+
+Renderizar sucesso parcial com “Indisponível” em cada lacuna. Usar consultas por role/nome acessível e interações de usuário para testar teclado, seleção de homônimos e callbacks. Verificar texto externo contendo marcação como texto literal, sem criar elementos HTML. Não usar snapshots como única evidência de comportamento nem testes de DOM simulado para comprovar layout/contraste.
+
+### Playwright — fluxos integrados e viewport mobile
+
+Interceptar geocoding e forecast na fronteira HTTP, mantendo componentes, hook, serviços e normalização reais. Usar fixtures pequenas e determinísticas; não depender da API ao vivo para aprovar a suíte.
+
+1. **Fluxo principal:** enviar nome com espaços/Unicode, selecionar localidade, conferir coordenadas requisitadas, cidade, horário local, condição, umidade, vento e exatamente cinco datas/valores (CA-01a–b, CA-02, CA-03a, CA-04a).
+2. **Temperaturas:** iniciar em °C, alternar para °F e voltar; conferir todas as temperaturas, inclusive mínima/máxima, e contar chamadas para provar que a alternância não gera requisições. Manter unidade ao trocar cidade e voltar a Celsius após reload (CA-05a–c).
+3. **Recuperação:** geocoding vazio, falha de rede, erro HTTP e timeout, seguidos de retry explícito com sucesso. Confirmar ausência de retry automático e edição da busca após vazio/erro (CA-07b–c).
+4. **Concorrência e parcial:** selecionar B antes da resposta de A, entregar A por último e confirmar que B permanece; trocar unidade enquanto carrega; apresentar campos/dias ausentes sem deslocar valores ou inventar zeros (CA-03b, CA-04b, CA-07d).
+5. **Mobile e responsividade:** em 320, 375, 768, 1024, 1440 e 1920 CSS px, concluir busca, seleção, consulta e troca de unidade, com rolagem vertical quando necessária. Medir `document.documentElement.scrollWidth <= document.documentElement.clientWidth`, inclusive com nomes longos e mensagens de erro, e verificar controles com área de pelo menos 44 × 44 CSS px (CA-06, RNF-02–03). Incluir emulação de toque em cenário mobile.
+6. **Semântica e fonte:** fluxo por teclado com foco visível, mensagens acessíveis e link Open-Meteo com destino correto (CA-08). Automação não substitui revisão manual com leitor de tela e contraste do tema.
+
+### Limites mensuráveis e compatibilidade
+
+- **Carregamento em até 200 ms:** com rede mantida pendente, instrumentar o tempo no navegador desde o evento de submissão/seleção até a primeira renderização visível do indicador. A simples existência posterior do spinner não comprova CA-07a; usar relógio real neste teste e registrar a duração.
+- **Timeout de 10 segundos:** além do teste unitário com timers falsos, exercitar a chamada pendente no navegador avançando o relógio de forma controlada e verificar a transição exatamente no prazo. Não validar somente a presença de `AbortController` ou aguardar um timeout arbitrariamente maior.
+- Executar fluxos essenciais em Chromium, Firefox e WebKit. Essa matriz não comprova sozinha RNF-08: antes de cada lançamento, complementar com as duas versões estáveis mais recentes de Chrome, Edge, Firefox e Safari, incluindo Safari iOS e Chrome Android. Emulação de viewport não equivale a teste em dispositivo real.
+- Priorizar testes unitários de variações e poucos fluxos E2E representativos; evitar duplicar todas as permutações em cada runner. Nas fases Code/Test, executar `pnpm lint`, `pnpm build` e `pnpm test`, além da suíte Playwright conforme o comando configurado no repositório. Esta fase altera somente documentação e não executa essas validações.
 
 ## Risks & Trade-offs
+
+### Decisões e alternativas consideradas
+
+| Decisão | Benefício e custo assumido | Alternativa considerada |
+|---|---|---|
+| Estado local em um hook, ligado por props | Pouca infraestrutura; exige coordenar manualmente cancelamento e transições. | Context/Redux/Zustand: adiados porque não há múltiplas páginas ou consumidores distantes que justifiquem estado global. |
+| `fetch` nativo com timeout e erro tipado | Sem dependência extra; exige validar status/corpo e gerir o prazo explicitamente. | Axios: facilitaria algumas convenções HTTP, mas não elimina normalização nem traz benefício suficiente neste escopo. |
+| Sem cache e sem biblioteca de server state | Não reapresenta dados antigos como atuais; seleções repetidas podem aumentar chamadas. | TanStack Query/SWR: úteis para cache e revalidação em escopo maior; adicionariam políticas de frescor e retry que precisariam ser configuradas para a spec. |
+| Celsius canônico e Fahrenheit derivado | Troca imediata, sem request ou perda por conversões sucessivas; formatação precisa ser consistente em todos os campos. | Consultar a API por unidade ou armazenar ambas: aumenta tráfego/latência ou duplica estado sem necessidade. |
+| `current` e `daily` na mesma chamada | Menos chamadas e mesmo contexto de localidade/fuso; uma falha de transporte afeta os dois blocos. | Chamadas separadas: permitem recuperação independente, mas duplicam estados, requisições e coordenação. |
+| Funções puras em `lib` e componentes com props | Testes determinísticos e limites claros; requer mapear a resposta externa ao domínio. | Consumir JSON bruto diretamente na UI: menos código inicial, mas acopla apresentação à API e dificulta testar lacunas/fusos. |
+| Validação explícita nos serviços | Evita dados inválidos sem nova dependência; verificações devem acompanhar o contrato externo. | Zod ou similar: considerar se os contratos crescerem; TypeScript sozinho não valida JSON em runtime. |
+| Busca por envio e retry manual | Cumpre a spec e evita tráfego por tecla/tentativas ocultas; exige ação da pessoa para recuperar falhas. | Autocomplete com debounce e retry automático: fora do comportamento definido para esta versão. |
+| Cliente sem backend ou persistência | Deploy simples e sem conta/chave do usuário; depende de CORS e disponibilidade/termos do provedor. | Proxy/backend: daria controle de limites e observabilidade, mas criaria operação de servidor e novas obrigações de privacidade. |
+| Mocks determinísticos na suíte | Resultados reproduzíveis e falhas simuláveis; fixtures podem divergir da API real. | API ao vivo como gate: instável e sujeita a limites. Revisar fixtures contra o contrato documentado e, se necessário, fazer verificação manual da integração antes do lançamento. |
+
+### Riscos e pendências de lançamento
 
 - **Disponibilidade, limites e qualidade da Open-Meteo (R-01):** não há garantia própria nem dados de fallback; comunicar a fonte, horário e erros. Confirmar termos e limites antes do lançamento.
 - **Localidades homônimas (R-02):** rótulos podem não bastar; mostrar país/região disponíveis e selecionar por identidade geográfica, não pelo rótulo.
