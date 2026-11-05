@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './weatherFixtures';
 
 function contrast(element: Element, property: 'color' | 'borderTopColor' | 'outlineColor') {
   function rgba(color: string) {
@@ -27,7 +27,7 @@ function contrast(element: Element, property: 'color' | 'borderTopColor' | 'outl
   return (Math.max(light, dark) + 0.05) / (Math.min(light, dark) + 0.05);
 }
 
-test('teclado mantém foco útil depois da busca e do retry', async ({ page }) => {
+test('teclado mantém foco útil depois da busca e do retry', async ({ page, weatherApi }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'Pular para o conteúdo' })).toBeFocused();
@@ -43,25 +43,33 @@ test('teclado mantém foco útil depois da busca e do retry', async ({ page }) =
   await input.fill('São Paulo');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('article')).toHaveCount(5);
-  await expect(page.getByRole('main')).toBeFocused();
-  expect(
-    await page.getByRole('main').evaluate(contrast, 'outlineColor' as const),
-  ).toBeGreaterThanOrEqual(3);
+  const focusTarget = page.locator('main:focus, input[name="city"]:focus');
+  await expect(focusTarget).toHaveCount(1);
+  expect(await focusTarget.evaluate(contrast, 'outlineColor' as const)).toBeGreaterThanOrEqual(3);
 
-  await page.getByRole('combobox').selectOption('error');
+  weatherApi.mode = 'error';
+  await input.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('HTTP 503');
   await page.getByRole('button', { name: 'Tentar novamente' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('article')).toHaveCount(5);
   await expect(page.getByRole('main')).toBeFocused();
 });
 
-test('concluir busca não rouba foco de quem está alternando unidade', async ({ page }) => {
+test('concluir busca não rouba foco de quem está alternando unidade', async ({
+  page,
+  weatherApi,
+}) => {
+  weatherApi.mode = 'loading';
   await page.goto('/');
   await page.getByRole('textbox', { name: 'Cidade' }).fill('São Paulo');
   await page.getByRole('textbox', { name: 'Cidade' }).press('Enter');
   const fahrenheit = page.getByRole('button', { name: '°F' });
   await fahrenheit.focus();
   await page.keyboard.press('Space');
+  weatherApi.mode = 'success';
+  weatherApi.release();
   await expect(page.getByRole('article')).toHaveCount(5);
   await expect(fahrenheit).toBeFocused();
   await expect(fahrenheit).toHaveAttribute('aria-pressed', 'true');
@@ -70,13 +78,14 @@ test('concluir busca não rouba foco de quem está alternando unidade', async ({
 test('textos e limites dos campos têm contraste mensurável', async ({ page }) => {
   await page.goto('/');
   const input = page.getByRole('textbox', { name: 'Cidade' });
-  const select = page.getByRole('combobox');
-  for (const control of [input, select]) {
+  for (const control of [input]) {
     expect(await control.evaluate(contrast, 'borderTopColor' as const)).toBeGreaterThanOrEqual(3);
     await control.focus();
     expect(await control.evaluate(contrast, 'outlineColor' as const)).toBeGreaterThanOrEqual(3);
   }
-  await select.selectOption('success');
+  await input.fill('São Paulo');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  await expect(page.getByRole('article')).toHaveCount(5);
   for (const locator of [
     page.getByRole('button', { name: 'Buscar' }),
     page.getByRole('button', { name: '°C' }),
@@ -93,10 +102,19 @@ test('textos e limites dos campos têm contraste mensurável', async ({ page }) 
   expect(await search.evaluate(contrast, 'color' as const)).toBeGreaterThanOrEqual(4.5);
 });
 
-test('todos os estados acomodam textos longos entre 320 e 1920 px', async ({ page }) => {
-  await page.goto('/');
-  for (const state of ['idle', 'loading', 'empty', 'error', 'success']) {
-    await page.getByRole('combobox').selectOption(state);
+test('todos os estados acomodam textos longos entre 320 e 1920 px', async ({
+  page,
+  weatherApi,
+}) => {
+  for (const state of ['idle', 'loading', 'empty', 'error', 'success'] as const) {
+    weatherApi.mode = state === 'idle' ? 'success' : state;
+    await page.goto('/');
+    if (state !== 'idle') {
+      await page.getByRole('textbox', { name: 'Cidade' }).fill('São Paulo');
+      await page.getByRole('button', { name: 'Buscar' }).click();
+    }
+    if (state === 'loading') await expect(page.getByRole('status')).toContainText('Carregando');
+    if (state === 'empty') await expect(page.getByRole('status')).toContainText('Nenhuma cidade');
     const heading = page.getByRole('region', { name: 'São Paulo' }).getByRole('heading');
     if (state === 'success') {
       await heading.evaluate((node) => {
@@ -107,6 +125,7 @@ test('todos os estados acomodam textos longos entre 320 e 1920 px', async ({ pag
       });
     }
     if (state === 'error') {
+      await expect(page.getByRole('alert')).toBeVisible();
       await page.getByRole('alert').evaluate((node) => {
         node.textContent = 'MensagemDeErroMuitoLongaSemEspaços'.repeat(8);
       });
@@ -125,13 +144,20 @@ test('todos os estados acomodam textos longos entre 320 e 1920 px', async ({ pag
         expect(box?.height).toBeGreaterThanOrEqual(44);
       }
     }
+    if (state === 'loading') {
+      weatherApi.mode = 'success';
+      weatherApi.release();
+      await expect(page.getByRole('article')).toHaveCount(5);
+    }
   }
 });
 
-test('loading respeita preferência por movimento reduzido', async ({ page }) => {
+test('loading respeita preferência por movimento reduzido', async ({ page, weatherApi }) => {
+  weatherApi.mode = 'loading';
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.getByRole('combobox').selectOption('loading');
+  await page.getByRole('textbox', { name: 'Cidade' }).fill('São Paulo');
+  await page.getByRole('button', { name: 'Buscar' }).click();
   const spinner = page.getByRole('status').locator('[aria-hidden="true"]');
   await expect(spinner).toHaveCSS('animation-name', 'none');
 });

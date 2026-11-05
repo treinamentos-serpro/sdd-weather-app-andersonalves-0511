@@ -1,30 +1,31 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
+import { MOCK_WEATHER } from '../../src/mocks/weather';
+import { getWeather, searchCities, WeatherServiceError } from '../../src/services/weatherService';
+import type { WeatherData } from '../../src/types/weather';
 
-describe('App com mock', () => {
+vi.mock('../../src/services/weatherService', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../src/services/weatherService')>();
+  return { ...original, searchCities: vi.fn(), getWeather: vi.fn() };
+});
+
+describe('App com useWeather', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.resetAllMocks();
+    vi.mocked(searchCities).mockResolvedValue([MOCK_WEATHER.city]);
+    vi.mocked(getWeather).mockResolvedValue(MOCK_WEATHER);
     render(<App />);
   });
 
-  afterEach(() => {
-    cleanup();
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
+  afterEach(cleanup);
 
   function search(city: string) {
     fireEvent.change(screen.getByRole('textbox', { name: 'Cidade' }), { target: { value: city } });
     fireEvent.submit(screen.getByRole('search'));
   }
 
-  function preview(value: string) {
-    fireEvent.change(screen.getByRole('combobox'), { target: { value } });
-  }
-
-  it('compõe header, busca, unidade, estado inicial e fonte sem acessar a API', () => {
-    const fetch = vi.spyOn(globalThis, 'fetch');
+  it('renderiza idle, busca, unidade e fonte sem consultar os serviços', () => {
     expect(
       within(screen.getByRole('banner')).getByRole('heading', { name: 'WeatherView' }),
     ).toBeInTheDocument();
@@ -37,103 +38,125 @@ describe('App com mock', () => {
       'href',
       'https://open-meteo.com/',
     );
-    expect(screen.getByText(/Demonstração sem API/)).toBeInTheDocument();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Demonstração|Dados fictícios/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    expect(searchCities).not.toHaveBeenCalled();
+    expect(getWeather).not.toHaveBeenCalled();
   });
 
-  it('busca o mock com loading imediato e preserva Fahrenheit durante e após a busca', () => {
-    const fetch = vi.spyOn(globalThis, 'fetch');
+  it('mostra loading imediato e usa a unidade de UI em todos os componentes', async () => {
     fireEvent.click(screen.getByRole('button', { name: '°F' }));
-    search('  SAO PAULO  ');
+    search('  São Paulo  ');
     expect(screen.getByRole('status')).toHaveTextContent('Carregando dados do clima');
     expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeDisabled();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(599));
-    expect(screen.getByRole('status')).toBeInTheDocument();
-    act(() => vi.advanceTimersByTime(1));
+
+    const region = await screen.findByRole('region', { name: 'São Paulo' });
+
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeEnabled();
-    expect(screen.getByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
+    expect(region).toHaveTextContent('79,5 °F');
     expect(screen.getAllByRole('article')).toHaveLength(5);
     expect(within(screen.getByRole('main')).getAllByText(/°F$/)).toHaveLength(11);
     expect(within(screen.getByRole('main')).queryByText(/°C$/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '°C' }));
-    expect(screen.getByRole('region', { name: 'São Paulo' })).toHaveTextContent('26,4 °C');
-    expect(fetch).not.toHaveBeenCalled();
+    expect(region).toHaveTextContent('26,4 °C');
+    expect(within(screen.getByRole('main')).getAllByText(/°C$/)).toHaveLength(11);
+    expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo');
+    expect(getWeather).toHaveBeenCalledExactlyOnceWith(MOCK_WEATHER.city);
   });
 
-  it('permite trocar unidade durante loading sem reiniciar a espera', () => {
-    search('São Paulo');
-    act(() => vi.advanceTimersByTime(300));
-    fireEvent.click(screen.getByRole('button', { name: '°F' }));
-    act(() => vi.advanceTimersByTime(300));
-    expect(screen.getByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
-  });
-
-  it('mostra vazio para outra cidade e permite corrigir a busca sem perder a unidade', () => {
-    fireEvent.click(screen.getByRole('button', { name: '°F' }));
-    search('Recife');
-    act(() => vi.advanceTimersByTime(600));
-    expect(screen.getByRole('status')).toHaveTextContent('Nenhuma cidade encontrada');
-    expect(screen.getByRole('textbox', { name: 'Cidade' })).toHaveValue('Recife');
-    expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeEnabled();
-    expect(screen.queryByRole('article')).not.toBeInTheDocument();
-    search('São Paulo');
-    act(() => vi.advanceTimersByTime(600));
-    expect(screen.getByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
-  });
-
-  it('alterna as cinco prévias com conteúdo exclusivo e cancela a busca pendente', () => {
-    search('São Paulo');
-    preview('error');
-    act(() => vi.advanceTimersByTime(10_000));
-    expect(screen.getByRole('alert')).toHaveTextContent('Erro simulado');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    preview('success');
-    expect(screen.getAllByRole('article')).toHaveLength(5);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    preview('empty');
-    expect(screen.getByRole('status')).toHaveTextContent('Nenhuma cidade encontrada');
-    expect(screen.queryByRole('article')).not.toBeInTheDocument();
-    preview('loading');
-    act(() => vi.advanceTimersByTime(10_000));
-    expect(screen.getByRole('status')).toHaveTextContent('Carregando');
-    preview('idle');
-    expect(screen.getByRole('status')).toHaveTextContent('Consulte o clima');
-    expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeEnabled();
-  });
-
-  it('retry repete o último termo, não o texto editado, sem tentativas automáticas', () => {
-    search('Recife');
-    act(() => vi.advanceTimersByTime(600));
-    preview('error');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Cidade' }), {
-      target: { value: 'São Paulo' },
+  it('permite trocar unidade durante loading sem reiniciar a consulta', async () => {
+    let resolve!: (data: WeatherData) => void;
+    vi.mocked(getWeather).mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    await act(async () => {
+      search('São Paulo');
     });
-    act(() => vi.advanceTimersByTime(60_000));
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Carregando');
-    act(() => vi.advanceTimersByTime(600));
-    expect(screen.getByRole('status')).toHaveTextContent('Nenhuma cidade encontrada');
-  });
 
-  it('retry sem busca anterior usa São Paulo e não muda a unidade', () => {
     fireEvent.click(screen.getByRole('button', { name: '°F' }));
-    preview('error');
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    act(() => vi.advanceTimersByTime(600));
+    await act(async () => {
+      resolve(MOCK_WEATHER);
+    });
+
     expect(screen.getByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
+    expect(getWeather).toHaveBeenCalledTimes(1);
   });
 
-  it('não inicia loading para busca vazia e cancela o timer ao desmontar', () => {
+  it('mostra empty sem forecast e permite nova busca sem perder a unidade', async () => {
+    vi.mocked(searchCities).mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByRole('button', { name: '°F' }));
+    search('Inexistente');
+
+    expect(await screen.findByText('Nenhuma cidade encontrada')).toBeInTheDocument();
+    expect(getWeather).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: 'Cidade' })).toHaveValue('Inexistente');
+    expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeEnabled();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    search('São Paulo');
+
+    expect(await screen.findByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
+  });
+
+  it('renderiza os dados retornados em vez de uma cidade fixa do mock', async () => {
+    const city = { ...MOCK_WEATHER.city, id: 2, name: 'Lisboa', country: 'Portugal' };
+    vi.mocked(searchCities).mockResolvedValueOnce([city]);
+    vi.mocked(getWeather).mockResolvedValueOnce({
+      ...MOCK_WEATHER,
+      city,
+      current: { ...MOCK_WEATHER.current, temperatureC: 10 },
+      forecast: MOCK_WEATHER.forecast.map((day) => ({ ...day, temperatureMaxC: 12 })),
+    });
+
+    search('Lisboa');
+
+    expect(await screen.findByRole('region', { name: 'Lisboa' })).toHaveTextContent('10,0 °C');
+    expect(within(screen.getByRole('main')).getAllByText('12,0 °C')).toHaveLength(5);
+    expect(screen.queryByRole('region', { name: 'São Paulo' })).not.toBeInTheDocument();
+  });
+
+  it('mostra a mensagem do serviço e retry repete a busca original', async () => {
+    vi.mocked(searchCities).mockRejectedValueOnce(new WeatherServiceError('Falha de rede.'));
+    search('São Paulo');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Cidade' }), {
+      target: { value: 'Lisboa' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByRole('region', { name: 'São Paulo' })).toBeInTheDocument();
+    expect(searchCities).toHaveBeenCalledTimes(2);
+    expect(searchCities).toHaveBeenLastCalledWith('São Paulo');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('retry de erro no forecast repete apenas o clima e mantém a unidade', async () => {
+    vi.mocked(getWeather).mockRejectedValueOnce(
+      new WeatherServiceError('A requisição demorou demais.'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '°F' }));
+    search('São Paulo');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('A requisição demorou demais.');
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByRole('region', { name: 'São Paulo' })).toHaveTextContent('79,5 °F');
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledTimes(2);
+  });
+
+  it('não inicia loading nem chama serviços para busca vazia', () => {
     search('   ');
     expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome de uma cidade.');
     expect(screen.getByRole('status')).toHaveTextContent('Consulte o clima');
-    const cancelTimer = vi.spyOn(window, 'clearTimeout');
-    search('São Paulo');
-    expect(vi.getTimerCount()).toBeGreaterThan(0);
-    cleanup();
-    expect(cancelTimer).toHaveBeenCalledOnce();
+    expect(searchCities).not.toHaveBeenCalled();
+    expect(getWeather).not.toHaveBeenCalled();
   });
 });
