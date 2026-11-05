@@ -24,6 +24,23 @@ concluídas.
 | Testes integrados | T-40, T-41, T-42, T-43 |
 | Hardening e gates finais | T-37, T-38, T-39, T-44 |
 
+## Matriz de rastreabilidade — requisitos funcionais
+
+| Requisito da spec | Tarefas de implementação | Tarefas de verificação |
+|---|---|---|
+| RF-01 — Buscar cidades | T-04, T-06, T-10, T-12 | T-05, T-07, T-11, T-40, T-42, T-45 |
+| RF-02 — Selecionar localidade | T-04, T-08, T-10, T-12, T-27, T-29 | T-05, T-09, T-11, T-28, T-40, T-42 |
+| RF-03 — Consultar clima atual | T-13, T-15, T-19, T-23, T-27, T-29, T-33 | T-14, T-16, T-20, T-24, T-28, T-40, T-42 |
+| RF-04 — Consultar previsão | T-13, T-15, T-17, T-19, T-25, T-27, T-29, T-33 | T-14, T-16, T-18, T-20, T-26, T-28, T-40, T-42 |
+| RF-05 — Alternar temperatura | T-21, T-23, T-25, T-30, T-32, T-33 | T-22, T-24, T-26, T-31, T-41 |
+| RF-06 — Usar em dispositivos móveis | T-37, T-38, T-39 | T-40, T-43 |
+| RF-07 — Comunicar estado e falhas | T-04, T-10, T-19, T-27, T-34, T-36 | T-05, T-11, T-20, T-28, T-35, T-40, T-42, T-45 |
+| RF-08 — Atribuir fonte | T-02, T-03 | T-40, T-43 |
+
+**Lacunas:** nenhum requisito funcional da spec está sem tarefa de
+implementação correspondente. RF-01 a RF-08 também têm tarefas de verificação
+associadas; os gates gerais de qualidade estão em T-44.
+
 ## Detalhamento A — Fundação e busca
 
 ### T-01 — Definir os contratos de domínio
