@@ -41,6 +41,82 @@ concluídas.
 implementação correspondente. RF-01 a RF-08 também têm tarefas de verificação
 associadas; os gates gerais de qualidade estão em T-44.
 
+## Prioridade e tamanho relativo
+
+Prioridades: **P0** é necessário para a primeira entrega funcional e demonstrável;
+**P1** completa a cobertura de release, falhas e compatibilidade; **P2** é
+verificação adicional de baixo risco, sem adiar implementação de requisitos.
+Tamanho: **P** pequeno (uma mudança localizada), **M** médio (mais de um caso ou
+coordenação simples entre módulos), **G** grande (lógica assíncrona complexa,
+integração ampla ou matriz extensa de validação).
+
+| Tarefa | Prioridade | Tamanho |
+|---|---:|:---:|
+| T-01 | P0 | M |
+| T-02 | P0 | P |
+| T-03 | P0 | P |
+| T-04 | P0 | M |
+| T-05 | P0 | M |
+| T-06 | P0 | P |
+| T-07 | P1 | P |
+| T-08 | P0 | P |
+| T-09 | P1 | P |
+| T-10 | P0 | G |
+| T-11 | P1 | M |
+| T-12 | P0 | M |
+| T-13 | P0 | M |
+| T-14 | P2 | M |
+| T-15 | P0 | P |
+| T-16 | P2 | P |
+| T-17 | P0 | G |
+| T-18 | P1 | M |
+| T-19 | P0 | G |
+| T-20 | P0 | G |
+| T-21 | P0 | P |
+| T-22 | P0 | P |
+| T-23 | P0 | M |
+| T-24 | P2 | M |
+| T-25 | P0 | M |
+| T-26 | P2 | M |
+| T-27 | P0 | G |
+| T-28 | P1 | M |
+| T-29 | P0 | M |
+| T-30 | P0 | P |
+| T-31 | P1 | P |
+| T-32 | P0 | P |
+| T-33 | P0 | M |
+| T-34 | P0 | M |
+| T-35 | P1 | M |
+| T-36 | P0 | M |
+| T-37 | P0 | M |
+| T-38 | P0 | M |
+| T-39 | P0 | M |
+| T-40 | P0 | G |
+| T-41 | P1 | M |
+| T-42 | P1 | G |
+| T-43 | P1 | G |
+| T-44 | P1 | M |
+| T-45 | P0 | M |
+
+As tarefas P2 são testes unitários/componentes complementares; os mesmos
+comportamentos essenciais permanecem cobertos por tarefas P0/P1 integradas.
+Elas não representam requisitos funcionais adiados.
+
+## Sequência sugerida em fatias verticais
+
+Cada fatia deve seguir as dependências e o fluxo tipos → funções puras →
+services → hook → componentes → integração → testes. As fatias 1 e 2 produzem
+valor visível primeiro; endurecimento e validação entre navegadores vêm depois.
+
+| Ordem | Fatia e tarefas | Resultado demonstrável |
+|---|---|---|
+| 0 | T-01 → T-02 → T-03 | Página inicial em pt-BR, com orientação e atribuição Open-Meteo. |
+| 1 | T-04 → T-10; T-06 → T-08; T-12; T-34 → T-36; verificar com T-05, T-07, T-09, T-11 e T-35 | Busca por envio explícito, seleção da localidade, loading/vazio/erro e retry da busca. |
+| 2 | T-13 → T-15 → T-17; T-19; T-27; T-23 → T-25; T-29; verificar com T-14, T-16, T-18, T-20, T-24, T-26, T-28 e T-45 | Clima atual e cinco dias exibidos para a localidade selecionada, incluindo dados parciais e estados de erro/empty/loading. |
+| 3 | T-21 → T-32 → T-30 → T-33; verificar com T-22, T-31 e T-41 | Celsius/Fahrenheit aplicado a temperaturas atuais e previstas sem nova consulta. |
+| 4 | T-37 → T-39; verificar com T-40 em viewport mobile de 375 px e T-42 | Fluxos principais utilizáveis em mobile, com layout sem rolagem horizontal e recuperação de falhas. |
+| 5 | Verificar cobertura ampla com T-43; executar T-44 | Validação de viewports/navegadores e gates finais de lint, build e testes. |
+
 ## Detalhamento A — Fundação e busca
 
 ### T-01 — Definir os contratos de domínio
