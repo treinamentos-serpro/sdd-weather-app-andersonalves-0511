@@ -97,10 +97,13 @@ interface ForecastResponse {
   current_units: {
     temperature_2m: string;
     wind_speed_10m: string;
+    precipitation: string;
+    surface_pressure: string;
   };
   daily_units: {
     temperature_2m_min: string;
     temperature_2m_max: string;
+    precipitation_probability_max: string;
   };
   current?: {
     time?: string | null;
@@ -108,12 +111,15 @@ interface ForecastResponse {
     relative_humidity_2m?: number | null;
     weather_code?: number | null;
     wind_speed_10m?: number | null;
+    precipitation?: number | null;
+    surface_pressure?: number | null;
   } | null;
   daily?: {
     time?: string[];
     weather_code?: (number | null)[];
     temperature_2m_min?: (number | null)[];
     temperature_2m_max?: (number | null)[];
+    precipitation_probability_max?: (number | null)[];
   } | null;
 }
 
@@ -149,8 +155,8 @@ function mapCity(value: unknown): City {
     !Number.isFinite(value.latitude) ||
     typeof value.longitude !== 'number' ||
     !Number.isFinite(value.longitude) ||
-    (value.admin1 !== undefined && typeof value.admin1 !== 'string') ||
-    (value.timezone !== undefined && typeof value.timezone !== 'string')
+    (value.admin1 != null && typeof value.admin1 !== 'string') ||
+    (value.timezone != null && typeof value.timezone !== 'string')
   ) {
     throw new WeatherServiceError(
       'Resposta inválida: cidade sem identidade ou coordenadas válidas.',
@@ -161,10 +167,10 @@ function mapCity(value: unknown): City {
     id: value.id,
     name: value.name,
     country: value.country,
-    admin1: value.admin1,
     latitude: value.latitude,
     longitude: value.longitude,
-    timezone: value.timezone,
+    ...(typeof value.admin1 === 'string' ? { admin1: value.admin1 } : {}),
+    ...(typeof value.timezone === 'string' ? { timezone: value.timezone } : {}),
   };
 }
 
@@ -186,9 +192,9 @@ function isValidTimeZone(value: string): boolean {
   }
 }
 
-function isOptionalNumberArray(value: unknown): value is (number | null)[] | undefined {
+function isOptionalNumberArray(value: unknown): value is (number | null)[] | null | undefined {
   return (
-    value === undefined ||
+    value == null ||
     (Array.isArray(value) && value.every((item) => item === null || isOptionalNumber(item)))
   );
 }
@@ -212,8 +218,11 @@ function isForecastResponse(value: unknown): value is ForecastResponse {
     !isRecord(dailyUnits) ||
     currentUnits.temperature_2m !== '°C' ||
     currentUnits.wind_speed_10m !== 'km/h' ||
+    currentUnits.precipitation !== 'mm' ||
+    currentUnits.surface_pressure !== 'hPa' ||
     dailyUnits.temperature_2m_min !== '°C' ||
-    dailyUnits.temperature_2m_max !== '°C'
+    dailyUnits.temperature_2m_max !== '°C' ||
+    dailyUnits.precipitation_probability_max !== '%'
   ) {
     return false;
   }
@@ -224,11 +233,14 @@ function isForecastResponse(value: unknown): value is ForecastResponse {
     isOptionalNumber(current.relative_humidity_2m) &&
     isOptionalNumber(current.weather_code) &&
     isOptionalNumber(current.wind_speed_10m) &&
+    isOptionalNumber(current.precipitation) &&
+    isOptionalNumber(current.surface_pressure) &&
     (daily.time === undefined ||
       (Array.isArray(daily.time) && daily.time.every((date) => typeof date === 'string'))) &&
     isOptionalNumberArray(daily.weather_code) &&
     isOptionalNumberArray(daily.temperature_2m_min) &&
-    isOptionalNumberArray(daily.temperature_2m_max)
+    isOptionalNumberArray(daily.temperature_2m_max) &&
+    isOptionalNumberArray(daily.precipitation_probability_max)
   );
 }
 
@@ -270,7 +282,7 @@ export async function searchCities(name: string, signal?: AbortSignal): Promise<
     signal,
   );
 
-  if (!isRecord(data) || (data.results !== undefined && !Array.isArray(data.results))) {
+  if (!isRecord(data) || (data.results != null && !Array.isArray(data.results))) {
     throw new WeatherServiceError('Resposta inválida ao buscar cidades.');
   }
 
@@ -281,8 +293,9 @@ export async function getWeather(city: City, signal?: AbortSignal): Promise<Weat
   const params = new URLSearchParams({
     latitude: String(city.latitude),
     longitude: String(city.longitude),
-    current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+    current:
+      'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation,surface_pressure',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
     timezone: 'auto',
     forecast_days: '5',
     temperature_unit: 'celsius',
@@ -322,6 +335,8 @@ export async function getWeather(city: City, signal?: AbortSignal): Promise<Weat
     weatherCode: current.weather_code ?? null,
     relativeHumidity: current.relative_humidity_2m ?? null,
     windSpeedKmh: current.wind_speed_10m ?? null,
+    precipitationMm: current.precipitation ?? null,
+    pressureHpa: current.surface_pressure ?? null,
     observedAtLocal: current.time ?? null,
   };
   const forecast: ForecastDay[] = daily.time.slice(0, 5).map((date, index) => ({
@@ -329,6 +344,7 @@ export async function getWeather(city: City, signal?: AbortSignal): Promise<Weat
     weatherCode: daily.weather_code?.[index] ?? null,
     temperatureMinC: daily.temperature_2m_min?.[index] ?? null,
     temperatureMaxC: daily.temperature_2m_max?.[index] ?? null,
+    precipitationProbability: daily.precipitation_probability_max?.[index] ?? null,
   }));
 
   return { city, timezone: data.timezone, current: currentWeather, forecast };

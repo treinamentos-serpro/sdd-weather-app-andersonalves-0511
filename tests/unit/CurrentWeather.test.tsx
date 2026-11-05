@@ -52,11 +52,7 @@ describe('CurrentWeather', () => {
       return (
         <>
           <UnitToggle unit={unit} onChange={setUnit} />
-          <CurrentWeather
-            city={city}
-            current={{ ...current, temperatureC: 0 }}
-            unit={unit}
-          />
+          <CurrentWeather city={city} current={{ ...current, temperatureC: 0 }} unit={unit} />
         </>
       );
     }
@@ -87,11 +83,15 @@ describe('CurrentWeather', () => {
       expect(screen.getByText('Parcialmente nublado')).toBeInTheDocument();
   });
 
-  it('aceita dados antigos sem precipitação, pressão ou região', () => {
+  it.each([
+    {},
+    { precipitationMm: undefined, pressureHpa: undefined },
+  ])('usa fallback para campos de precipitação e pressão ausentes: %j', (extraFields) => {
     render(
       <CurrentWeather
         city={{ id: 1, name: 'Lisboa', country: 'Portugal', latitude: 38.72, longitude: -9.14 }}
         current={{
+          ...extraFields,
           temperatureC: 20,
           weatherCode: 0,
           relativeHumidity: 0,
@@ -107,6 +107,7 @@ describe('CurrentWeather', () => {
     expect(screen.getByText('0 km/h')).toBeInTheDocument();
     expect(screen.getByText('Precipitação').parentElement).toHaveTextContent('Indisponível');
     expect(screen.getByText('Pressão').parentElement).toHaveTextContent('Indisponível');
+    expect(screen.queryByText(/undefined|NaN/i)).not.toBeInTheDocument();
   });
 
   it('trata todos os dados ausentes ou inválidos sem inventar zeros', () => {

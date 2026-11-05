@@ -143,11 +143,12 @@ interface WeatherData {
 Resultados da busca são identificados por identidade geográfica — coordenadas e, quando disponível, o ID da fonte — e não pelo texto do rótulo. `admin1` é opcional; não renderizar região vazia. `weatherCode` é interpretado por um mapeamento local de códigos WMO para rótulos em pt-BR, com fallback explícito de indisponibilidade para códigos não reconhecidos. Valores de temperatura permanecem em Celsius e são arredondados a uma casa decimal depois da conversão para exibição.
 
 Precipitação (`precipitationMm`, mm) e pressão à superfície (`pressureHpa`, hPa)
-são opcionais para preservar os consumidores existentes. A UI mostra
-“Indisponível” para ausência, `null` ou número não finito. Quando a integração
-for implementada, mapear `current.precipitation` e `current.surface_pressure`
-sem confundir pressão à superfície com pressão ao nível do mar. O mock inclui
-essas métricas; esta etapa não adiciona acesso à API.
+são opcionais para preservar consumidores existentes. O serviço solicita e
+normaliza `current.precipitation` e `current.surface_pressure`; a pressão é a
+de superfície, não a pressão ao nível do mar. A probabilidade diária é
+`daily.precipitation_probability_max` e alimenta `precipitationProbability`.
+Campos ausentes ou nulos são normalizados para `null`; a UI mostra
+“Indisponível”, sem inventar zero. O mock e a integração usam o mesmo contrato.
 
 `ForecastDay.precipitationProbability` é opcional, em %, para compatibilidade
 com previsões existentes. Ausência, `null`, valores não finitos ou fora de
@@ -328,14 +329,17 @@ Resposta resumida para uma consulta hipotética em 10/01/2026:
 | `current.temperature_2m` | `current.temperatureC` | Número finito em °C ou `null`. |
 | `current.relative_humidity_2m` | `current.relativeHumidity` | Umidade em % ou `null`. |
 | `current.wind_speed_10m` | `current.windSpeedKmh` | Velocidade em km/h ou `null`. |
+| `current.precipitation` | `current.precipitationMm` | Precipitação atual em mm ou `null`. |
+| `current.surface_pressure` | `current.pressureHpa` | Pressão à superfície em hPa ou `null`. |
 | `current.weather_code` | `current.weatherCode` | Código WMO ou `null`; rótulo pt-BR derivado na apresentação. |
 | `current.time` | `current.observedAtLocal` | Horário local ISO sem offset ou `null`; não é o horário da requisição. |
 | `daily.time[i]` | `forecast[j].date` | Data local ISO usada como chave para a entrada do dia esperado. |
 | `daily.weather_code[i]` | `forecast[j].weatherCode` | Código WMO associado à mesma data ou `null`. |
 | `daily.temperature_2m_min[i]` | `forecast[j].temperatureMinC` | Mínima associada à mesma data em °C ou `null`. |
 | `daily.temperature_2m_max[i]` | `forecast[j].temperatureMaxC` | Máxima associada à mesma data em °C ou `null`. |
+| `daily.precipitation_probability_max[i]` | `forecast[j].precipitationProbability` | Probabilidade máxima diária em % ou `null`. |
 
-Os arrays `daily` são paralelos: o índice `i` identifica os campos da mesma data. Depois de associar cada índice à sua data, produzir exatamente cinco entradas em ordem local. Calcular hoje com o relógio de referência da operação e `WeatherData.timezone`, sem depender de `current.time` estar disponível. Avançar por dias de calendário, não por blocos de 24 horas, para respeitar transições de horário de verão. Para datas ausentes, manter a data esperada e campos `null`; não deslocar valores de outro índice para cobrir lacunas.
+Os arrays `daily` são paralelos: o índice `i` identifica os campos da mesma data. Arrays ou valores individuais de clima podem estar ausentes ou ser `null`; normalizar cada lacuna para `null`, inclusive quando um array for mais curto, sem deslocar valores de outro índice. Depois de associar cada índice à sua data, produzir exatamente cinco entradas em ordem local. Calcular hoje com o relógio de referência da operação e `WeatherData.timezone`, sem depender de `current.time` estar disponível. Avançar por dias de calendário, não por blocos de 24 horas, para respeitar transições de horário de verão. As cinco datas são essenciais; se não vierem, rejeitar a resposta em vez de renderizar uma data inválida.
 
 `current.time` já está no fuso retornado: não adicionar `Z`, não aplicar novamente `utc_offset_seconds` e não interpretar automaticamente com o fuso do dispositivo. Datas diárias são datas de calendário, não instantes UTC. Formatar para `dd/MM/yyyy` e horário de 24 horas em pt-BR.
 

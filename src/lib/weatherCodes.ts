@@ -34,6 +34,6 @@ const conditions = new Map<number, WeatherCondition>([
   [99, { label: 'Trovoadas com granizo intenso', icon: '⛈️' }],
 ]);
 
-export function getWeatherCondition(code: number | null): WeatherCondition {
-  return (code === null ? undefined : conditions.get(code)) ?? { label: 'Indisponível', icon: '?' };
+export function getWeatherCondition(code: number | null | undefined): WeatherCondition {
+  return (code == null ? undefined : conditions.get(code)) ?? { label: 'Indisponível', icon: '?' };
 }

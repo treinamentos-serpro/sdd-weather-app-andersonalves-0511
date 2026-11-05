@@ -65,6 +65,7 @@ describe('ForecastCard', () => {
       'Indisponível',
     );
     expect(screen.getByText('Céu limpo')).toBeInTheDocument();
+    expect(screen.queryByText(/undefined|NaN/i)).not.toBeInTheDocument();
   });
 
   it.each([0, 100])('preserva o limite de probabilidade %s%%', (probability) => {
