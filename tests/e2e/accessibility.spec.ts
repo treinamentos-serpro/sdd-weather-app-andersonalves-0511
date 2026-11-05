@@ -29,8 +29,10 @@ function contrast(element: Element, property: 'color' | 'borderTopColor' | 'outl
 
 test('teclado mantém foco útil depois da busca e do retry', async ({ page, weatherApi }) => {
   await page.goto('/');
+  const skipLink = page.getByRole('link', { name: 'Pular para o conteúdo' });
+  await expect(skipLink).toBeAttached();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', { name: 'Pular para o conteúdo' })).toBeFocused();
+  await expect(skipLink).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();
 
