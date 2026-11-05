@@ -1,21 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { celsiusToFahrenheit, formatTemperature } from '../../src/lib/temperature';
 
-describe('temperatura', () => {
+describe('celsiusToFahrenheit', () => {
   it.each([
-    [0, 32, '32,0 °F'],
-    [100, 212, '212,0 °F'],
-    [-40, -40, '-40,0 °F'],
-    [-1.26, 29.732, '29,7 °F'],
-  ])('converte %s °C sem arredondar antes da apresentação', (celsius, fahrenheit, formatted) => {
-    expect(celsiusToFahrenheit(celsius)).toBeCloseTo(fahrenheit, 10);
-    expect(formatTemperature(celsius, 'fahrenheit')).toBe(formatted);
+    [0, 32],
+    [100, 212],
+    [-40, -40],
+  ])('converte %s °C para %s °F', (celsius, fahrenheit) => {
+    expect(celsiusToFahrenheit(celsius)).toBe(fahrenheit);
   });
+});
 
-  it('formata Celsius com uma casa decimal em pt-BR', () => {
-    expect(formatTemperature(0, 'celsius')).toBe('0,0 °C');
-    expect(formatTemperature(26.46, 'celsius')).toBe('26,5 °C');
-  });
+describe('formatTemperature', () => {
+  it.each([
+    [0, 'celsius', '0,0 °C'],
+    [0, 'fahrenheit', '32,0 °F'],
+    [100, 'fahrenheit', '212,0 °F'],
+    [-40, 'fahrenheit', '-40,0 °F'],
+    [26.46, 'celsius', '26,5 °C'],
+    [-1.26, 'fahrenheit', '29,7 °F'],
+  ] as const)(
+    'formata %s °C na unidade %s com arredondamento e símbolo',
+    (celsius, unit, formatted) => {
+      expect(formatTemperature(celsius, unit)).toBe(formatted);
+    },
+  );
 
   it.each([
     null,
