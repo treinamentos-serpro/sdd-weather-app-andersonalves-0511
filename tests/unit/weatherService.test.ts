@@ -135,6 +135,38 @@ describe('searchCities', () => {
     await expect(searchCities('Inexistente')).resolves.toEqual([]);
   });
 
+  it('rejeita JSON inválido como erro do serviço', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockRejectedValue(new SyntaxError('JSON inválido')),
+      }),
+    );
+
+    await expect(searchCities('São Paulo')).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
+  it.each([
+    { results: {} },
+    { results: 'inválido' },
+  ])('rejeita uma propriedade results malformada: %j', async (payload) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(payload))));
+
+    await expect(searchCities('São Paulo')).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
+  it('rejeita uma cidade sem coordenadas válidas', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ results: [{ id: 1, name: 'Cidade' }] }))),
+    );
+
+    await expect(searchCities('Cidade')).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
   it.each([
     400, 429, 500,
   ])('lança WeatherServiceError para HTTP %i sem ler o corpo', async (status) => {
@@ -157,6 +189,14 @@ describe('getWeather', () => {
   };
   const payload = {
     timezone: 'America/Sao_Paulo',
+    current_units: {
+      temperature_2m: '°C',
+      wind_speed_10m: 'km/h',
+    },
+    daily_units: {
+      temperature_2m_min: '°C',
+      temperature_2m_max: '°C',
+    },
     current: {
       time: '2026-01-10T12:00',
       temperature_2m: 26.4,
@@ -208,6 +248,35 @@ describe('getWeather', () => {
       { date: '2026-01-13', weatherCode: 1, temperatureMinC: 21, temperatureMaxC: 30 },
       { date: '2026-01-14', weatherCode: 0, temperatureMinC: 21.4, temperatureMaxC: 31.3 },
     ]);
+  });
+
+  it('aplica o timeout até a leitura do corpo da resposta', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: string, options: RequestInit) => {
+      signal = options.signal ?? undefined;
+      return Promise.resolve({
+        ok: true,
+        json: () => new Promise<never>(() => {}),
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = getWeather(city);
+    const rejection = expect(request).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      message: 'A requisição demorou demais.',
+    });
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(signal?.aborted).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await rejection;
+    expect(signal?.aborted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('limita a previsão a cinco itens quando a API retorna datas extras', async () => {
@@ -271,6 +340,43 @@ describe('getWeather', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(incomplete))));
 
     await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+  });
+
+  it('rejeita JSON inválido como erro do serviço', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockRejectedValue(new SyntaxError('JSON inválido')),
+      }),
+    );
+
+    await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
+  it.each([
+    undefined,
+    null,
+    '',
+    'Mars/Olympus',
+  ])('rejeita timezone inválido: %s', async (timezone) => {
+    const invalid = { ...payload, timezone };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(invalid))));
+
+    await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
+  });
+
+  it.each([
+    { current: { ...payload.current, temperature_2m: '0' } },
+    { daily: { ...payload.daily, temperature_2m_min: 'inválido' } },
+    { daily: { ...payload.daily, time: [null, ...payload.daily.time.slice(1)] } },
+    { current_units: { ...payload.current_units, temperature_2m: '°F' } },
+    { daily_units: { ...payload.daily_units, temperature_2m_max: '°F' } },
+  ])('rejeita tipos inconsistentes na resposta: %j', async (invalidFields) => {
+    const invalid = { ...payload, ...invalidFields };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(invalid))));
+
+    await expect(getWeather(city)).rejects.toBeInstanceOf(WeatherServiceError);
   });
 
   it.each([429, 500])('rejeita HTTP %i sem ler o corpo', async (status) => {
