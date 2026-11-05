@@ -61,15 +61,3 @@ export const test = base.extend<{ weatherApi: WeatherApi }>({
 });
 
 export { expect } from '@playwright/test';
-
-await page.unrouteAll({ behavior: 'ignoreErrors' });
-},
-{
-  auto: true;
-}
-,
-  ],
-})
-
-export { expect } from '@playwright/test';
-
