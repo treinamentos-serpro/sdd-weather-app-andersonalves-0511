@@ -65,10 +65,10 @@ Componentes cuidam da renderização e interação; o hook coordena estados e op
 Contratos internos sugeridos. Valores numéricos de clima são anuláveis para representar campos ausentes sem convertê-los em zero (CA-03b, CA-04b).
 
 ```ts
-type TemperatureUnit = "celsius" | "fahrenheit";
+type Unit = "celsius" | "fahrenheit";
 
-interface Location {
-  id?: number;
+interface City {
+  id: number;
   name: string;
   country: string;
   admin1?: string;
@@ -77,7 +77,7 @@ interface Location {
   timezone?: string;
 }
 
-interface CurrentConditions {
+interface CurrentWeather {
   temperatureC: number | null;
   weatherCode: number | null;
   relativeHumidity: number | null;
@@ -85,18 +85,18 @@ interface CurrentConditions {
   observedAtLocal: string | null;
 }
 
-interface DailyForecast {
+interface ForecastDay {
   date: string; // Data local ISO yyyy-MM-dd
   weatherCode: number | null;
   temperatureMinC: number | null;
   temperatureMaxC: number | null;
 }
 
-interface WeatherReport {
-  location: Location;
+interface WeatherData {
+  city: City;
   timezone: string;
-  current: CurrentConditions;
-  forecast: DailyForecast[]; // Exatamente cinco datas locais, em ordem
+  current: CurrentWeather;
+  forecast: ForecastDay[]; // Exatamente cinco datas locais, em ordem
 }
 ```
 
@@ -113,16 +113,148 @@ Resultados da busca são identificados por identidade geográfica — coordenada
 
 ## External APIs
 
-Todas as chamadas são HTTPS, sem chave de API. Consultas devem ser montadas com `URLSearchParams`, preservando caracteres Unicode corretamente.
+Todas as chamadas usam `GET` via HTTPS, sem chave de API do usuário. Consultas devem ser montadas com `URLSearchParams`, preservando caracteres Unicode corretamente. Os exemplos JSON abaixo são ilustrativos, não representam dados meteorológicos atuais.
 
-- **Geocodificação:** `https://geocoding-api.open-meteo.com/v1/search`
-  - Parâmetros: `name` (termo aparado), `count` (limitar quantidade de opções), `language=pt` e `format=json`.
-  - Normalizar resultados para `Location`; tratar a lista ausente ou vazia como nenhum resultado.
-- **Previsão:** `https://api.open-meteo.com/v1/forecast`
-  - Parâmetros: `latitude`, `longitude`, `current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`, `daily=weather_code,temperature_2m_max,temperature_2m_min`, `temperature_unit=celsius`, `wind_speed_unit=kmh`, `timezone=auto` e `forecast_days=5`.
-  - A resposta deve fornecer fuso e séries diárias alinhadas por índice; usar os valores `current_units` e `daily_units` para interpretar unidades da fonte e validar os campos disponíveis.
+### Geocoding — busca de cidades
 
-Validar status HTTP, JSON e estrutura mínima antes da normalização. Um corpo malformado não deve ser apresentado como dado atual. Campos individuais ausentes ou nulos são preservados como indisponíveis, sem descartar os demais campos válidos.
+**URL:** `https://geocoding-api.open-meteo.com/v1/search`
+
+Atende RF-01 e RF-02, CA-01a–c e CA-02.
+
+| Parâmetro | Valor proposto | Finalidade |
+|---|---|---|
+| `name` | Nome informado após `trim()` | Preservar Unicode; não chamar quando vazio. |
+| `count` | `10` | Limitar a resposta a até dez opções, sem implementar paginação. |
+| `language` | `pt` | Solicitar nomes localizados em português quando disponíveis. |
+| `format` | `json` | Retornar JSON. |
+
+`current`, `daily` e `timezone` não são parâmetros desta busca. O fuso pode ser recebido em cada resultado.
+
+Exemplo de chamada:
+
+```text
+https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o+Paulo&count=10&language=pt&format=json
+```
+
+Resposta resumida:
+
+```json
+{
+  "results": [
+    {
+      "id": 3448439,
+      "name": "São Paulo",
+      "latitude": -23.5475,
+      "longitude": -46.63611,
+      "country": "Brasil",
+      "country_code": "BR",
+      "admin1": "São Paulo",
+      "timezone": "America/Sao_Paulo"
+    }
+  ]
+}
+```
+
+**Mapeamento para `City[]`:**
+
+| Origem | Destino | Regra |
+|---|---|---|
+| `results[i].id` | `City.id` | Identidade do resultado da geocodificação. |
+| `results[i].name` | `City.name` | Nome exibido como texto. |
+| `results[i].country` | `City.country` | País exibido junto ao nome. |
+| `results[i].admin1` | `City.admin1` | Opcional; omitir o trecho regional do rótulo se ausente. |
+| `results[i].latitude` | `City.latitude` | Coordenada usada no forecast da opção selecionada. |
+| `results[i].longitude` | `City.longitude` | Coordenada usada no forecast da opção selecionada. |
+| `results[i].timezone` | `City.timezone` | Fuso IANA opcional; o forecast fornecerá o fuso do relatório. |
+
+Selecionar pelo ID e coordenadas, nunca pelo rótulo. `country_code` não é necessário no modelo atual. `results` ausente ou vazio em uma resposta válida indica ausência de correspondências; um valor de tipo incorreto ou um resultado sem identidade/coordenadas válidas é resposta inválida, não uma lista vazia silenciosa.
+
+### Forecast — condições atuais e previsão diária
+
+**URL:** `https://api.open-meteo.com/v1/forecast`
+
+Atende RF-03, RF-04 e RF-05, CA-03a–b, CA-04a–b e CA-05a–c.
+
+| Parâmetro | Valor | Finalidade |
+|---|---|---|
+| `latitude` | `City.latitude` | Latitude da opção selecionada. |
+| `longitude` | `City.longitude` | Longitude da opção selecionada. |
+| `current` | `temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m` | Temperatura, umidade, condição WMO e vento atuais. |
+| `daily` | `weather_code,temperature_2m_max,temperature_2m_min` | Condição, máxima e mínima de cada dia. |
+| `timezone` | `auto` | Resolver o fuso da cidade e retornar horários/dias locais. |
+| `forecast_days` | `5` | Hoje no fuso da cidade e os quatro dias seguintes. |
+| `temperature_unit` | `celsius` | Manter todos os valores internos em Celsius. |
+| `wind_speed_unit` | `kmh` | Obter vento em km/h, sem conversão na UI. |
+| `timeformat` | `iso8601` | Receber datas e horários locais em formato ISO. |
+
+Exemplo de chamada (uma única URL):
+
+```text
+https://api.open-meteo.com/v1/forecast?latitude=-23.5475&longitude=-46.63611&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5&temperature_unit=celsius&wind_speed_unit=kmh&timeformat=iso8601
+```
+
+Resposta resumida para uma consulta hipotética em 10/01/2026:
+
+```json
+{
+  "timezone": "America/Sao_Paulo",
+  "utc_offset_seconds": -10800,
+  "current_units": {
+    "time": "iso8601",
+    "temperature_2m": "°C",
+    "relative_humidity_2m": "%",
+    "weather_code": "wmo code",
+    "wind_speed_10m": "km/h"
+  },
+  "current": {
+    "time": "2026-01-10T12:00",
+    "temperature_2m": 26.4,
+    "relative_humidity_2m": 65,
+    "weather_code": 3,
+    "wind_speed_10m": 12.5
+  },
+  "daily_units": {
+    "time": "iso8601",
+    "weather_code": "wmo code",
+    "temperature_2m_max": "°C",
+    "temperature_2m_min": "°C"
+  },
+  "daily": {
+    "time": ["2026-01-10", "2026-01-11", "2026-01-12", "2026-01-13", "2026-01-14"],
+    "weather_code": [3, 61, 2, 1, 0],
+    "temperature_2m_max": [28.0, 27.1, 29.2, 30.0, 31.3],
+    "temperature_2m_min": [20.0, 19.8, 20.1, 21.0, 21.4]
+  }
+}
+```
+
+**Mapeamento para `WeatherData`:**
+
+| Origem | Destino | Regra |
+|---|---|---|
+| `City` selecionada | `WeatherData.city` | Preservar identidade e coordenadas da seleção; a grade meteorológica pode ter coordenadas ligeiramente diferentes. |
+| `timezone` | `WeatherData.timezone` | Fuso IANA do relatório, necessário para interpretar as datas. |
+| `current.temperature_2m` | `current.temperatureC` | Número finito em °C ou `null`. |
+| `current.relative_humidity_2m` | `current.relativeHumidity` | Umidade em % ou `null`. |
+| `current.wind_speed_10m` | `current.windSpeedKmh` | Velocidade em km/h ou `null`. |
+| `current.weather_code` | `current.weatherCode` | Código WMO ou `null`; rótulo pt-BR derivado na apresentação. |
+| `current.time` | `current.observedAtLocal` | Horário local ISO sem offset ou `null`; não é o horário da requisição. |
+| `daily.time[i]` | `forecast[j].date` | Data local ISO usada como chave para a entrada do dia esperado. |
+| `daily.weather_code[i]` | `forecast[j].weatherCode` | Código WMO associado à mesma data ou `null`. |
+| `daily.temperature_2m_min[i]` | `forecast[j].temperatureMinC` | Mínima associada à mesma data em °C ou `null`. |
+| `daily.temperature_2m_max[i]` | `forecast[j].temperatureMaxC` | Máxima associada à mesma data em °C ou `null`. |
+
+Os arrays `daily` são paralelos: o índice `i` identifica os campos da mesma data. Depois de associar cada índice à sua data, produzir exatamente cinco entradas em ordem local. Calcular hoje com o relógio de referência da operação e `WeatherData.timezone`, sem depender de `current.time` estar disponível. Avançar por dias de calendário, não por blocos de 24 horas, para respeitar transições de horário de verão. Para datas ausentes, manter a data esperada e campos `null`; não deslocar valores de outro índice para cobrir lacunas.
+
+`current.time` já está no fuso retornado: não adicionar `Z`, não aplicar novamente `utc_offset_seconds` e não interpretar automaticamente com o fuso do dispositivo. Datas diárias são datas de calendário, não instantes UTC. Formatar para `dd/MM/yyyy` e horário de 24 horas em pt-BR.
+
+`Unit` não é obtido da resposta: é preferência da UI, iniciada em `"celsius"`. Para Fahrenheit, converter os campos de temperatura não nulos com `C × 9/5 + 32`, arredondando somente na exibição a uma casa decimal, sem nova consulta.
+
+### Validação e falhas comuns
+
+Validar status HTTP, JSON, estrutura e unidades antes da normalização. Usar `current_units` e `daily_units` para confirmar a interpretação dos campos disponíveis. Fuso ausente/inválido ou corpo malformado resulta em erro explícito, não em uso silencioso do fuso do dispositivo. Campos individuais ausentes ou nulos são preservados como indisponíveis, sem descartar os demais campos válidos ou transformar `null` em zero.
+
+Ambos os endpoints seguem timeout total de 10 segundos, carregamento em até 200 ms e nova tentativa somente por ação explícita (RF-07, RNF-04). Falhas HTTP, inclusive limites do provedor, não são resultados vazios nem autorização para simular dados atualizados. A atribuição permanece como link para `https://open-meteo.com/` (RF-08).
 
 ## State Management
 
