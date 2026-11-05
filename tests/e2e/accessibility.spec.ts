@@ -50,7 +50,9 @@ test('teclado mantém foco útil depois da busca e do retry', async ({ page, wea
   weatherApi.mode = 'error';
   await input.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('alert')).toContainText('HTTP 503');
+  await expect(page.getByRole('alert')).toContainText(
+    'A fonte de dados está temporariamente indisponível.',
+  );
   await page.getByRole('button', { name: 'Tentar novamente' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('article')).toHaveCount(5);

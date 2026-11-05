@@ -156,8 +156,8 @@ describe('App com useWeather', () => {
     expect(getWeather).toHaveBeenCalledTimes(2);
   });
 
-  it('não inicia loading nem chama serviços para busca vazia', () => {
-    search('   ');
+  it.each(['', '   '])('não inicia loading nem chama serviços para %j', (query) => {
+    search(query);
     expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome de uma cidade.');
     expect(screen.getByRole('status')).toHaveTextContent('Consulte o clima');
     expect(searchCities).not.toHaveBeenCalled();

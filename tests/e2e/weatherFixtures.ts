@@ -38,10 +38,13 @@ export const test = base.extend<{ weatherApi: WeatherApi }>({
             current_units: {
               temperature_2m: '°C',
               wind_speed_10m: 'km/h',
+              precipitation: 'mm',
+              surface_pressure: 'hPa',
             },
             daily_units: {
               temperature_2m_min: '°C',
               temperature_2m_max: '°C',
+              precipitation_probability_max: '%',
             },
             current: {
               time: current.observedAtLocal,
@@ -49,12 +52,15 @@ export const test = base.extend<{ weatherApi: WeatherApi }>({
               relative_humidity_2m: current.relativeHumidity,
               weather_code: current.weatherCode,
               wind_speed_10m: current.windSpeedKmh,
+              precipitation: current.precipitationMm,
+              surface_pressure: current.pressureHpa,
             },
             daily: {
               time: forecast.map((day) => day.date),
               weather_code: forecast.map((day) => day.weatherCode),
               temperature_2m_min: forecast.map((day) => day.temperatureMinC),
               temperature_2m_max: forecast.map((day) => day.temperatureMaxC),
+              precipitation_probability_max: forecast.map((day) => day.precipitationProbability),
             },
           },
         });

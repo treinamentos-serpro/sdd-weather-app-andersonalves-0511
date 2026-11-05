@@ -110,7 +110,7 @@ describe('searchCities', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('codifica o nome aparado e mapeia somente os campos de City', async () => {
+  it('codifica e decodifica Unicode, apóstrofo, hífen e ampersand no nome', async () => {
     const city = {
       id: 3448439,
       name: 'São Paulo',
@@ -127,11 +127,13 @@ describe('searchCities', () => {
       );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(searchCities('  São Paulo & região  ')).resolves.toEqual([city]);
+    const query = "São João-d'Aliança & região";
+    await expect(searchCities(`  ${query}  `)).resolves.toEqual([city]);
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-      'https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Paulo%20%26%20regi%C3%A3o&count=10&language=pt&format=json',
+      "https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Jo%C3%A3o-d'Alian%C3%A7a%20%26%20regi%C3%A3o&count=10&language=pt&format=json",
       { signal: expect.any(AbortSignal) },
     );
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('name')).toBe(query);
   });
 
   it('preserva cidades sem região ou fuso opcionais', async () => {
