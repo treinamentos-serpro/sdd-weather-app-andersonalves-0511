@@ -65,33 +65,61 @@ o dia local atual e os quatro dias locais seguintes.
 
 ## Acceptance Criteria
 
-- **CA-01 (RF-01):** ao submeter uma consulta não vazia com nome de cidade, o
-  sistema solicita correspondências ao serviço de geocodificação da
-  Open-Meteo e exibe os resultados selecionáveis; após selecionar um resultado,
-  as consultas meteorológicas usam a localização correspondente.
-- **CA-02 (RF-02):** quando a resposta da busca contiver duas ou mais
-  localidades com o mesmo nome, cada resultado exibe o nome da cidade e o país
-  e, quando fornecida pela fonte, a região administrativa; o usuário consegue
-  selecionar cada resultado de forma independente.
-- **CA-03 (RF-03):** após a seleção de uma cidade e o carregamento bem-sucedido
-  dos dados, a tela exibe a cidade selecionada, a temperatura atual com unidade,
-  a condição meteorológica, a umidade relativa e a velocidade do vento.
-- **CA-04 (RF-04):** após o carregamento bem-sucedido, a tela exibe exatamente
-  cinco entradas diárias, incluindo a data local atual da cidade e as quatro
-  datas locais seguintes; cada entrada exibe condição meteorológica e
-  temperaturas mínima e máxima com unidade.
-- **CA-05 (RF-05):** a primeira apresentação de temperaturas usa °C; ao
-  alternar para °F, as temperaturas atuais e todas as temperaturas mínima e
-  máxima da previsão passam a ser exibidas em °F; ao alternar de volta, são
-  exibidas em °C.
-- **CA-06 (RF-06):** em uma viewport de 320 px de largura, os controles de busca
-  e unidade e os dados de clima atual e previsão permanecem visíveis e
-  operáveis, sem rolagem horizontal da página.
-- **CA-07 (RF-07):** enquanto cada chamada de busca ou consulta meteorológica
-  estiver pendente, a interface indica carregamento; uma busca concluída sem
-  correspondências informa que nenhuma cidade foi encontrada; uma falha de
-  carregamento informa que não foi possível obter os dados e oferece uma ação
-  para tentar novamente.
+- **CA-01 (RF-01)**
+  - **Given** a aplicação está aberta e o campo de busca está disponível
+  - **When** o usuário envia um nome de cidade não vazio
+  - **Then** a aplicação solicita resultados ao serviço de geocodificação da
+    Open-Meteo e apresenta os resultados recebidos como opções selecionáveis
+  - **When** o usuário seleciona um resultado
+  - **Then** a consulta meteorológica é feita usando as coordenadas da
+    localidade selecionada
+- **CA-02 (RF-02)**
+  - **Given** a busca retornou pelo menos duas localidades com o mesmo nome
+  - **When** os resultados são exibidos
+  - **Then** cada opção mostra o nome da cidade e o país e, se fornecida pela
+    fonte, a região administrativa
+  - **When** o usuário seleciona uma dessas opções
+  - **Then** a localidade usada na consulta corresponde à opção selecionada
+- **CA-03 (RF-03)**
+  - **Given** o usuário selecionou uma cidade e a resposta de clima atual
+    contém temperatura, condição meteorológica, umidade relativa e velocidade
+    do vento
+  - **When** a consulta termina com sucesso
+  - **Then** a tela identifica a cidade e apresenta os quatro valores recebidos,
+    incluindo a unidade da temperatura
+- **CA-04 (RF-04)**
+  - **Given** a cidade selecionada tem como data local atual 2026-01-10 e a
+    resposta contém previsões para essa data e as quatro seguintes
+  - **When** a consulta de previsão termina com sucesso
+  - **Then** a tela apresenta exatamente cinco entradas, com as datas locais de
+    2026-01-10 a 2026-01-14, cada uma contendo condição meteorológica e
+    temperaturas mínima e máxima com unidade
+- **CA-05 (RF-05)**
+  - **Given** a tela apresenta temperaturas e a unidade inicial é Celsius
+  - **When** o usuário seleciona Fahrenheit
+  - **Then** a unidade exibida nas temperaturas atual, mínima e máxima passa a
+    ser °F
+  - **When** o usuário seleciona Celsius
+  - **Then** a unidade exibida em todas essas temperaturas passa a ser °C
+- **CA-06 (RF-06)**
+  - **Given** a aplicação está aberta em uma viewport com 320 px de largura e
+    dados meteorológicos carregados
+  - **When** o usuário usa a busca, seleciona uma cidade e alterna a unidade
+  - **Then** os controles e dados permanecem utilizáveis, e a largura de
+    rolagem horizontal do documento não excede a largura da viewport
+- **CA-07 (RF-07)**
+  - **Given** uma chamada de busca ou consulta meteorológica foi iniciada e
+    ainda não recebeu resposta
+  - **When** a chamada permanece pendente
+  - **Then** a interface exibe um indicador de carregamento correspondente à
+    operação
+  - **Given** uma busca terminou com zero resultados
+  - **When** a resposta vazia é apresentada
+  - **Then** a interface informa que nenhuma cidade foi encontrada
+  - **Given** uma chamada de busca ou consulta meteorológica falhou
+  - **When** a falha é apresentada
+  - **Then** a interface informa que não foi possível obter os dados e oferece
+    uma ação de nova tentativa
 
 ## Non-Functional Requirements
 
