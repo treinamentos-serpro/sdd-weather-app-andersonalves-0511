@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDay, formatPrecipitationProbability } from '../../src/lib/format';
+import {
+  formatDay,
+  formatPrecipitationProbability,
+  getDayLabel,
+  getShortDate,
+} from '../../src/lib/format';
 
 describe('formatDay', () => {
   it.each([
@@ -27,6 +32,38 @@ describe('formatDay', () => {
   ])('sinaliza indisponibilidade para a data %s', (date) => {
     expect(formatDay(date)).toBe('Indisponível');
   });
+});
+
+describe('getDayLabel', () => {
+  it.each([
+    [0, '2026-01-10', 'Hoje'],
+    [1, '2026-01-11', 'Amanhã'],
+    [2, '2026-01-12', 'seg.'],
+    [4, '2026-01-14', 'qua.'],
+  ])('formata o índice %i da data %s', (index, date, label) => {
+    expect(getDayLabel(index, date)).toBe(label);
+  });
+
+  it('sinaliza uma data inválida para os dias após amanhã', () => {
+    expect(getDayLabel(2, '2026-02-29')).toBe('Indisponível');
+  });
+});
+
+describe('getShortDate', () => {
+  it.each([
+    ['2026-01-10', '10/01'],
+    ['2025-12-31', '31/12'],
+    ['2024-02-29', '29/02'],
+  ])('formata %s como dia e mês', (date, label) => {
+    expect(getShortDate(date)).toBe(label);
+  });
+
+  it.each(['2026-02-29', 'invalid', '2026-01-10T00:00:00Z'])(
+    'sinaliza a data inválida %s',
+    (date) => {
+      expect(getShortDate(date)).toBe('Indisponível');
+    },
+  );
 });
 
 describe('formatPrecipitationProbability', () => {
