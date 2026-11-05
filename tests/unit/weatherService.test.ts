@@ -1,9 +1,86 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getWeather, searchCities, WeatherServiceError } from '../../src/services/weatherService';
+import {
+  fetchWithTimeout,
+  getWeather,
+  searchCities,
+  WeatherServiceError,
+} from '../../src/services/weatherService';
 import type { City } from '../../src/types/weather';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+describe('fetchWithTimeout', () => {
+  it('retorna a resposta e limpa o timer no sucesso', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    const response = new Response('{}');
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchWithTimeout('https://api.open-meteo.com/')).resolves.toBe(response);
+
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith('https://api.open-meteo.com/', {
+      signal: expect.any(AbortSignal),
+    });
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('aborta exatamente em 10 segundos e converte AbortError', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    const fetchMock = vi.fn((_url: string, options: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        });
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = fetchWithTimeout('https://api.open-meteo.com/');
+    const rejection = expect(request).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      message: 'A requisição demorou demais.',
+    });
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(fetchMock.mock.calls[0][1].signal?.aborted).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await rejection;
+    expect(fetchMock.mock.calls[0][1].signal?.aborted).toBe(true);
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('converte falha de rede em WeatherServiceError e limpa o timer', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    const request = fetchWithTimeout('https://api.open-meteo.com/');
+
+    await expect(request).rejects.toBeInstanceOf(WeatherServiceError);
+    await expect(request).rejects.toThrow('Falha de rede.');
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('converte AbortError recebido antes do prazo e limpa o timer', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError')));
+
+    await expect(fetchWithTimeout('https://api.open-meteo.com/')).rejects.toThrow(
+      'A requisição demorou demais.',
+    );
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe('searchCities', () => {
@@ -35,6 +112,7 @@ describe('searchCities', () => {
     await expect(searchCities('  São Paulo & região  ')).resolves.toEqual([city]);
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
       'https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Paulo%20%26%20regi%C3%A3o&count=10&language=pt&format=json',
+      { signal: expect.any(AbortSignal) },
     );
   });
 

@@ -7,6 +7,28 @@ export class WeatherServiceError extends Error {
   }
 }
 
+export async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      error.name === 'AbortError'
+    ) {
+      throw new WeatherServiceError('A requisição demorou demais.');
+    }
+
+    throw new WeatherServiceError('Falha de rede.');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 interface GeocodingResponse {
   results?: City[];
 }
@@ -35,7 +57,7 @@ export async function searchCities(name: string): Promise<City[]> {
     return [];
   }
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=pt&format=json`,
   );
 
@@ -68,7 +90,7 @@ export async function getWeather(city: City): Promise<WeatherData> {
     wind_speed_unit: 'kmh',
     timeformat: 'iso8601',
   });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+  const response = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${params}`);
 
   if (!response.ok) {
     throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).`);
