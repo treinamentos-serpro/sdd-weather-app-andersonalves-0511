@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { searchCities, WeatherServiceError } from '../../src/services/weatherService';
+import { getWeather, searchCities, WeatherServiceError } from '../../src/services/weatherService';
+import type { City } from '../../src/types/weather';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -63,6 +64,142 @@ describe('searchCities', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, json }));
 
     await expect(searchCities('São Paulo')).rejects.toThrow(WeatherServiceError);
+    expect(json).not.toHaveBeenCalled();
+  });
+});
+
+describe('getWeather', () => {
+  const city: City = {
+    id: 3448439,
+    name: 'São Paulo',
+    country: 'Brasil',
+    latitude: -23.5475,
+    longitude: -46.63611,
+    timezone: 'America/Sao_Paulo',
+  };
+  const payload = {
+    timezone: 'America/Sao_Paulo',
+    current: {
+      time: '2026-01-10T12:00',
+      temperature_2m: 26.4,
+      relative_humidity_2m: 65,
+      weather_code: 3,
+      wind_speed_10m: 12.5,
+    },
+    daily: {
+      time: ['2026-01-10', '2026-01-11', '2026-01-12', '2026-01-13', '2026-01-14'],
+      weather_code: [3, 61, 2, 1, 0],
+      temperature_2m_min: [20, 19.8, 20.1, 21, 21.4],
+      temperature_2m_max: [28, 27.1, 29.2, 30, 31.3],
+    },
+  };
+
+  it('consulta as coordenadas selecionadas e mapeia current e os arrays paralelos', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(payload)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const weather = await getWeather(city);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.origin + url.pathname).toBe('https://api.open-meteo.com/v1/forecast');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      latitude: '-23.5475',
+      longitude: '-46.63611',
+      current: 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+      timezone: 'auto',
+      forecast_days: '5',
+      temperature_unit: 'celsius',
+      wind_speed_unit: 'kmh',
+      timeformat: 'iso8601',
+    });
+    expect(weather.city).toBe(city);
+    expect(weather.timezone).toBe(payload.timezone);
+    expect(weather.current).toEqual({
+      temperatureC: 26.4,
+      relativeHumidity: 65,
+      weatherCode: 3,
+      windSpeedKmh: 12.5,
+      observedAtLocal: '2026-01-10T12:00',
+    });
+    expect(weather.forecast).toEqual([
+      { date: '2026-01-10', weatherCode: 3, temperatureMinC: 20, temperatureMaxC: 28 },
+      { date: '2026-01-11', weatherCode: 61, temperatureMinC: 19.8, temperatureMaxC: 27.1 },
+      { date: '2026-01-12', weatherCode: 2, temperatureMinC: 20.1, temperatureMaxC: 29.2 },
+      { date: '2026-01-13', weatherCode: 1, temperatureMinC: 21, temperatureMaxC: 30 },
+      { date: '2026-01-14', weatherCode: 0, temperatureMinC: 21.4, temperatureMaxC: 31.3 },
+    ]);
+  });
+
+  it('limita a previsão a cinco itens quando a API retorna datas extras', async () => {
+    const daily = { ...payload.daily, time: [...payload.daily.time, '2026-01-15'] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...payload, daily }))),
+    );
+
+    const weather = await getWeather(city);
+
+    expect(weather.forecast).toHaveLength(5);
+    expect(weather.forecast[4].date).toBe('2026-01-14');
+  });
+
+  it('preserva zero e campos ausentes ou nulos sem deslocar os índices', async () => {
+    const partial = {
+      ...payload,
+      current: { temperature_2m: 0, relative_humidity_2m: null },
+      daily: {
+        time: payload.daily.time,
+        weather_code: [0, null, 61],
+        temperature_2m_min: [0],
+      },
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(partial))));
+
+    const weather = await getWeather(city);
+
+    expect(weather.current).toEqual({
+      temperatureC: 0,
+      relativeHumidity: null,
+      weatherCode: null,
+      windSpeedKmh: null,
+      observedAtLocal: null,
+    });
+    expect(weather.forecast).toEqual([
+      { date: '2026-01-10', weatherCode: 0, temperatureMinC: 0, temperatureMaxC: null },
+      { date: '2026-01-11', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
+      { date: '2026-01-12', weatherCode: 61, temperatureMinC: null, temperatureMaxC: null },
+      { date: '2026-01-13', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
+      { date: '2026-01-14', weatherCode: null, temperatureMinC: null, temperatureMaxC: null },
+    ]);
+  });
+
+  it.each([
+    {},
+    { daily: payload.daily },
+    { current: payload.current },
+    { current: null, daily: payload.daily },
+    { current: payload.current, daily: null },
+    null,
+  ])('rejeita resposta sem current ou daily: %j', async (incomplete) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(incomplete))));
+
+    await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+  });
+
+  it.each([undefined, [], ['2026-01-10']])('rejeita datas insuficientes: %j', async (time) => {
+    const incomplete = { ...payload, daily: { ...payload.daily, time } };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(incomplete))));
+
+    await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+  });
+
+  it.each([429, 500])('rejeita HTTP %i sem ler o corpo', async (status) => {
+    const json = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, json }));
+
+    await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
     expect(json).not.toHaveBeenCalled();
   });
 });
