@@ -127,6 +127,15 @@ remove espaços externos e preserva os demais caracteres. Consultas vazias
 exibem orientação acessível sem disparar o callback. `disabled` bloqueia o
 campo, o botão e o envio; o componente não realiza chamadas à API.
 
+## Controle de unidade
+
+[`UnitToggle`](src/components/UnitToggle.tsx) recebe `unit: Unit` e
+`onChange(unit: Unit)`. O componente é controlado: o pai mantém a unidade e
+atualiza a prop após o callback. Os botões °C/°F expõem `aria-pressed` dentro
+do grupo “Unidade de temperatura”. Use Tab/Shift+Tab para navegar e
+Enter/Espaço para selecionar. Selecionar a unidade já ativa não emite mudança.
+O controle não converte dados nem faz requisições.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**
