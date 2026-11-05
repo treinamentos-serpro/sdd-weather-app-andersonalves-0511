@@ -42,18 +42,26 @@ o dia local atual e os quatro dias locais seguintes.
 
 ## User Stories
 
-- Como pessoa que quer planejar o dia, quero pesquisar uma cidade e ver seu
-  clima atual para entender as condições locais.
-- Como pessoa que pesquisa uma cidade com nome compartilhado, quero distinguir
-  os resultados por região e país para selecionar a localidade correta.
-- Como pessoa que planeja os próximos dias, quero consultar uma previsão diária
-  de cinco dias para antecipar as condições esperadas.
-- Como pessoa habituada a Fahrenheit, quero alternar a unidade de temperatura
-  para interpretar os dados na unidade que prefiro.
-- Como pessoa usando um celular, quero acessar as mesmas funções principais
-  sem precisar de uma tela de desktop.
-- Como pessoa cuja busca falhou ou não encontrou resultados, quero receber uma
-  explicação clara para saber o que aconteceu e como continuar.
+- **RF-01:** Como pessoa que consulta o clima de diferentes cidades, quero
+  pesquisar e selecionar uma cidade pelo nome para consultar as condições da
+  localidade desejada.
+- **RF-02:** Como pessoa que encontrou cidades com nomes iguais ou semelhantes,
+  quero distinguir os resultados pelo país e pela região quando disponível para
+  selecionar a localidade correta.
+- **RF-03:** Como pessoa que precisa saber as condições de uma cidade agora,
+  quero consultar o clima atual da localidade selecionada para decidir como me
+  preparar.
+- **RF-04:** Como pessoa que planeja os próximos dias, quero consultar a
+  previsão diária de cinco dias para antecipar as condições esperadas.
+- **RF-05:** Como pessoa que prefere temperaturas em Fahrenheit, quero alternar
+  a unidade entre Fahrenheit e Celsius para interpretar os valores na unidade
+  que prefiro.
+- **RF-06:** Como pessoa que consulta o clima pelo celular, quero usar busca,
+  consulta e alternância de unidade em uma interface adaptada à tela para
+  acessar as funções principais em mobilidade.
+- **RF-07:** Como pessoa que está buscando uma cidade ou carregando dados,
+  quero receber indicação de carregamento, resultados vazios ou falhas para
+  entender o estado da consulta e saber como continuar.
 
 ## Acceptance Criteria
 
