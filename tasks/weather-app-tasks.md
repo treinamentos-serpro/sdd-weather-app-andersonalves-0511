@@ -5,7 +5,26 @@ rastreáveis a [specs/weather-app-spec.md](../specs/weather-app-spec.md). Cada
 tarefa limita sua implementação à camada indicada; componentes e serviços
 mantêm testes em tarefas próprias.
 
-## Entrega 1 — Fundação e contratos
+## Ordem de execução do backlog
+
+Esta é a ordem canônica de implementação. As seções seguintes são um catálogo
+de critérios agrupado por área, não uma sequência alternativa. Uma tarefa só
+começa quando todas as dependências listadas em seu detalhamento estiverem
+concluídas.
+
+| Fase | Ordem das tarefas |
+|---|---|
+| Tipos | T-01 |
+| Funções puras | T-13, T-15, T-17, T-21 |
+| Services | T-04, T-19 |
+| Hook | T-10, T-27, T-32 |
+| Componentes | T-02, T-06, T-08, T-23, T-25, T-30, T-34 |
+| Integração | T-03, T-12, T-29, T-33, T-36 |
+| Testes unitários/componentes | T-05, T-07, T-09, T-11, T-14, T-16, T-18, T-20, T-22, T-24, T-26, T-28, T-31, T-35 |
+| Testes integrados | T-40, T-41, T-42, T-43 |
+| Hardening e gates finais | T-37, T-38, T-39, T-44 |
+
+## Detalhamento A — Fundação e busca
 
 ### T-01 — Definir os contratos de domínio
 
@@ -52,7 +71,7 @@ mantêm testes em tarefas próprias.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-07–08; CA-08; RNF-01, RNF-03.
 
-## Entrega 2 — Busca e seleção de localidades
+## Detalhamento B — Serviços e orquestração da busca
 
 ### T-04 — Implementar o serviço de geocodificação
 
@@ -96,7 +115,7 @@ mantêm testes em tarefas próprias.
   - Digitação não chama o callback; envio de valor vazio/apenas espaços não
     chama o callback e apresenta orientação junto ao campo.
   - Após validação, o campo continua editável para nova tentativa.
-- **Dependências:** Nenhuma.
+- **Dependências:** T-01.
 - **Arquivos prováveis:** `src/components/SearchForm.tsx`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-01; CA-01a–c; RNF-03.
@@ -198,7 +217,7 @@ mantêm testes em tarefas próprias.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-01–02; CA-01a–c, CA-02.
 
-## Entrega 3 — Datas, códigos e normalização meteorológica
+## Detalhamento C — Funções puras de data e previsão
 
 ### T-13 — Implementar formatação de datas locais
 
@@ -288,7 +307,7 @@ mantêm testes em tarefas próprias.
 - **Tipo:** Test
 - **Rastreabilidade:** RF-03–04; CA-03b, CA-04a–b.
 
-## Entrega 4 — Serviço e apresentação do clima
+## Detalhamento D — Serviço meteorológico e apresentação
 
 ### T-19 — Implementar o serviço de previsão
 
@@ -357,7 +376,7 @@ mantêm testes em tarefas próprias.
     arredondamento.
   - Asserções comparam strings exatas com uma casa decimal, vírgula pt-BR,
     sufixos `°C`/`°F` e `null → Indisponível`.
-- **Dependências:** T-21.
+- **Dependências:** T-01, T-21.
 - **Arquivos prováveis:** `tests/unit/temperature.test.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-05; CA-05a–c.
@@ -474,7 +493,7 @@ mantêm testes em tarefas próprias.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-02–04; CA-02, CA-03a–b, CA-04a–b.
 
-## Entrega 5 — Unidade, estados e recuperação
+## Detalhamento E — Unidade e estados
 
 ### T-30 — Criar o controle de unidade
 
@@ -531,7 +550,7 @@ mantêm testes em tarefas próprias.
   - Spy de forecast confirma contagem de chamadas inalterada nas duas mudanças.
   - Unidade do controle e das props dos cartões é a mesma unidade retornada pelo
     hook, sem estado local duplicado na página.
-- **Dependências:** T-24, T-26, T-29, T-30, T-32.
+- **Dependências:** T-29, T-30, T-32.
 - **Arquivos prováveis:** `src/App.tsx`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-05; CA-05a–c.
@@ -585,7 +604,7 @@ mantêm testes em tarefas próprias.
 - **Tipo:** UI
 - **Rastreabilidade:** RF-07; CA-07a–c; RNF-03–04, RNF-07.
 
-## Entrega 6 — Responsividade e validação integrada
+## Detalhamento F — Testes integrados e hardening
 
 ### T-37 — Ajustar responsividade da busca
 
@@ -649,7 +668,7 @@ mantêm testes em tarefas próprias.
     exatamente as cinco datas esperadas.
   - Com resposta de rede mantida pendente, indicador aparece ≤ 200 ms após
     submissão/seleção; todas as respostas vêm de fixtures interceptadas.
-- **Dependências:** T-29, T-36.
+- **Dependências:** T-05, T-11, T-12, T-20, T-28, T-29, T-36.
 - **Arquivos prováveis:** `tests/e2e/weather-search.spec.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-01–04, RF-07–08; CA-01a–b, CA-02, CA-03a, CA-04a,
@@ -665,7 +684,7 @@ mantêm testes em tarefas próprias.
   - Contadores de geocoding e forecast não aumentam ao alternar unidade.
   - Após selecionar outra cidade a unidade ainda é Fahrenheit; após reload volta
     a Celsius.
-- **Dependências:** T-33.
+- **Dependências:** T-22, T-31, T-33.
 - **Arquivos prováveis:** `tests/e2e/temperature-unit.spec.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-05; CA-05a–c.
@@ -682,7 +701,7 @@ mantêm testes em tarefas próprias.
     previsão de B permanecem visíveis.
   - Fixtures com campo atual nulo e lacuna diária verificam “Indisponível” e
     valores associados às datas originais.
-- **Dependências:** T-29, T-36.
+- **Dependências:** T-05, T-11, T-20, T-28, T-29, T-36.
 - **Arquivos prováveis:** `tests/e2e/weather-recovery.spec.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-01–04, RF-07; CA-03b, CA-04b, CA-07b–d.
@@ -699,7 +718,7 @@ mantêm testes em tarefas próprias.
     foco visível e roles status/alert; cenário mobile executa interação por
     toque e mede alvos ≥ 44 × 44 CSS px.
   - Os cenários essenciais terminam sem falha em Chromium, Firefox e WebKit.
-- **Dependências:** T-39.
+- **Dependências:** T-03, T-12, T-29, T-33, T-36.
 - **Arquivos prováveis:** `tests/e2e/weather-responsive.spec.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-06–08; CA-06–08; RNF-02–03, RNF-08.
@@ -714,7 +733,8 @@ mantêm testes em tarefas próprias.
     0 em Chromium, Firefox e WebKit.
   - Inspeção dos testes confirma que chamadas à Open-Meteo são interceptadas ou
     mockadas; a suíte não faz requisições de API ao vivo.
-- **Dependências:** T-40, T-41, T-42, T-43.
+- **Dependências:** T-05, T-07, T-09, T-11, T-14, T-16, T-18, T-20, T-22,
+  T-24, T-26, T-28, T-31, T-35, T-37, T-38, T-39, T-40, T-41, T-42, T-43.
 - **Arquivos prováveis:** Código e testes das entregas; configuração existente
   somente se necessária.
 - **Tipo:** Infra
