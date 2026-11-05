@@ -102,6 +102,23 @@ Decisões-chave:
 
 ---
 
+## Mock para desenvolvimento da UI
+
+Os contratos estão em [`src/types/weather.ts`](src/types/weather.ts). Para
+desenvolver componentes sem consultar a API, importe o objeto tipado:
+
+```ts
+import { MOCK_WEATHER } from './mocks/weather';
+```
+
+O exemplo considera um arquivo na raiz de `src/`. O mock em
+[`src/mocks/weather.ts`](src/mocks/weather.ts) contém São Paulo, clima atual e
+cinco dias consecutivos, de 10 a 14/01/2026, com condições WMO variadas.
+São dados fictícios e fixos, não uma previsão atualizada. Temperaturas estão em
+Celsius, vento em km/h e umidade em %. Datas e horário são locais ao fuso
+`America/Sao_Paulo`; o horário não tem offset nem sufixo `Z`.
+Os contratos aceitam `null` nos campos meteorológicos indisponíveis.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**
