@@ -124,6 +124,35 @@ Resultados da busca são identificados por identidade geográfica — coordenada
 
 ## Data Flow
 
+```mermaid
+flowchart TD
+    Input["Input de busca: envio explícito"] --> Valid{"Nome após trim está preenchido?"}
+    Valid -->|Não| Validation["UI: solicitar nome, sem request"]
+    Validation --> Input
+    Valid -->|Sim| SearchLoading["Hook: searchState = loading"]
+    SearchLoading --> Geocoding["Service de geocoding"]
+    Geocoding -->|Resposta válida| Results{"Há cidades?"}
+    Results -->|Não| Empty["Hook: searchState = empty"]
+    Empty --> EmptyUI["UI: nenhuma cidade encontrada"]
+    EmptyUI -->|Editar e reenviar| Input
+    Results -->|Sim| SearchSuccess["Hook: searchState = success"]
+    SearchSuccess --> Selection["UI: seleção de cidade por ID e coordenadas"]
+    Selection --> WeatherLoading["Hook: selecionar cidade e weatherState = loading"]
+    WeatherLoading --> Forecast["Service de forecast: current e daily"]
+    Forecast -->|Resposta válida, completa ou parcial| WeatherSuccess["Hook: weatherState = success, dados em Celsius"]
+    WeatherSuccess --> UI["Componentes de UI: clima atual e cinco dias"]
+    Unit["Hook: unidade Celsius ou Fahrenheit"] -->|Derivar temperaturas sem request| UI
+    UI --> Partial["Campos ou dias ausentes: Indisponível"]
+    Geocoding -->|Rede, API, timeout ou resposta inválida| SearchError["Hook: searchState = error"]
+    SearchError --> SearchErrorUI["UI: erro da busca e botão Tentar novamente"]
+    SearchErrorUI -->|Ação explícita: mesmo termo| SearchLoading
+    Forecast -->|Rede, API, timeout ou resposta inválida| WeatherError["Hook: weatherState = error"]
+    WeatherError --> WeatherErrorUI["UI: erro do clima e botão Tentar novamente"]
+    WeatherErrorUI -->|Ação explícita: mesma cidade| WeatherLoading
+```
+
+O hook orquestra as chamadas e recebe seus resultados; as setas representam eventos e dados, não chamadas diretas entre componentes e serviços. Os estados `loading` são apresentados na UI. Antes de aplicar sucesso ou erro, o hook verifica a identidade da operação: respostas obsoletas são ignoradas e cancelamentos por substituição não geram erro visível.
+
 1. A pessoa envia a busca. Remover espaços externos; se ficar vazia, mostrar orientação e não chamar o serviço (RF-01, CA-01a–c).
 2. O hook ativa o estado de carregamento e solicita localidades ao serviço de geocodificação. Resultados preservam a consulta associada e são exibidos como texto, sem interpretar HTML (CA-01b, RNF-06).
 3. Sem resultados, informar ausência de correspondências e manter a consulta editável (CA-07b). Com resultados, exibir nome, país e região quando disponível.
