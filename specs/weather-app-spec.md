@@ -14,6 +14,16 @@ dias locais seguintes.
 
 ## Functional Requirements
 
+### Etapa de desenvolvimento com mock
+
+Antes da integração HTTP, a tela pode usar `MOCK_WEATHER`, com aviso explícito
+de dados fictícios e fixos. A busca simulada reconhece São Paulo sem distinguir
+acentos/maiúsculas, apresenta loading e retorna vazio para outras cidades.
+Um seletor de prévia permite inspecionar idle/loading/empty/error/success;
+erros de demonstração são identificados como simulados e oferecem retry.
+A unidade é estado da UI, preservada entre estados e buscas. Essa demonstração
+não substitui o fluxo final de geocodificação e seleção de localidades.
+
 - **RF-01 — Buscar cidades:** permitir pesquisar por nome de cidade. Remover
   espaços no início e no fim, aceitar nomes Unicode (incluindo acentos,
   apóstrofos e hífens) e pesquisar somente após envio explícito. Uma consulta

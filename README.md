@@ -182,6 +182,22 @@ Loading e erro da consulta continuam sob responsabilidade da composição da tel
 A composição escolhe o estado e fornece mensagens específicas da operação.
 Os componentes não fazem requisições nem alteram o foco automaticamente.
 
+## Executar a UI com mock
+
+Execute `pnpm dev` para abrir a tela de [`App`](src/App.tsx), sem chamadas à API.
+Busque **São Paulo** (também aceita `sao paulo`) para ver o clima e os cinco
+dias após 600 ms de loading simulado. Outras cidades mostram o estado vazio.
+O seletor **Prévia do estado (demonstração)** permite inspecionar
+idle/loading/empty/error/success; a prévia de loading permanece até escolher
+outro estado. Retry repete a última busca, inicialmente São Paulo.
+Trocar a prévia cancela uma busca simulada pendente.
+
+A unidade começa em Celsius, permanece ao trocar estados ou buscar novamente
+e só afeta a renderização. O mock não é renomeado conforme o texto pesquisado.
+O bootstrap está em [`main.tsx`](src/main.tsx) e os estilos Tailwind em
+[`styles/index.css`](src/styles/index.css). Esta etapa não implementa
+geocodificação, seleção de localidades ou dados meteorológicos ao vivo.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

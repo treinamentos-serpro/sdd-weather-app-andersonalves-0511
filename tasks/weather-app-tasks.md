@@ -119,6 +119,18 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 
 ## Detalhamento A — Fundação e busca
 
+### Integração intermediária da UI com mock
+
+- Implementar `src/App.tsx`, `src/main.tsx`, `src/styles/index.css` e
+  `src/hooks/useMockWeather.ts` conforme a etapa mock do plano.
+- Header com marca, SearchBar e UnitToggle; conteúdo exclusivo por estado;
+  sucesso com clima atual e cinco dias; rodapé identifica fonte e demonstração.
+- Prévia explícita dos cinco estados, busca simulada e retry sem acesso à API.
+- Unidade persiste durante loading, erro, vazio e novas buscas; nenhuma segunda
+  cópia Fahrenheit dos dados é armazenada.
+- Testes cobrem estados, busca, retry, cancelamento e conversão de todos os
+  valores; validar lint/build/test. A integração HTTP fica para etapa posterior.
+
 ### T-01 — Definir os contratos de domínio
 
 - **Descrição:** Declarar os tipos compartilhados de localidade, clima,

@@ -35,6 +35,18 @@ Essa separação isola efeitos colaterais na fronteira HTTP e no ciclo de vida R
 
 ## Tech Stack
 
+Na etapa mock, `App.tsx` compõe header, busca, unidade, estados, clima atual,
+previsão e rodapé com atribuição. `hooks/useMockWeather.ts` encapsula uma
+espera simulada de 600 ms, cancelada ao desmontar ou trocar a prévia.
+Nenhum serviço HTTP é chamado. A busca aceita apenas o nome completo da cidade
+do mock (trim, sem distinguir acentos/caixa); o nome original não é renomeado.
+Retry reaplica o último termo, inicialmente São Paulo. O seletor de prévia
+exibe os cinco estados sem agendar transições automáticas.
+`unit` vive em `App`, independente da operação simulada, e é passado aos
+componentes que convertem os valores Celsius apenas na renderização.
+`main.tsx` inicializa React com StrictMode e importa `styles/index.css`
+com as diretivas Tailwind. O bootstrap reporta explicitamente raiz ausente.
+
 - **TypeScript strict, React e Vite:** stack definida pelo projeto; tipos e componentes simples para a aplicação cliente.
 - **Tailwind CSS:** estilos responsivos e tema do produto, preservando controles acessíveis e alvos de toque de pelo menos 44 × 44 CSS px.
 - **Fetch API:** chamadas HTTPS sem chave de usuário; `AbortController` para timeout e cancelamento.
