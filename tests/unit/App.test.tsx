@@ -49,12 +49,14 @@ describe('App com useWeather', () => {
     fireEvent.click(screen.getByRole('button', { name: '°F' }));
     search('  São Paulo  ');
     expect(screen.getByRole('status')).toHaveTextContent('Carregando dados do clima');
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeDisabled();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
 
     const region = await screen.findByRole('region', { name: 'São Paulo' });
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
     expect(screen.getByRole('textbox', { name: 'Cidade' })).toBeEnabled();
     expect(region).toHaveTextContent('79,5 °F');
     expect(screen.getAllByRole('article')).toHaveLength(5);

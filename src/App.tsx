@@ -49,6 +49,7 @@ export default function App() {
           ref={contentRef}
           id="weather-content"
           tabIndex={-1}
+          aria-busy={status === 'loading'}
           className="min-w-0 space-y-6 rounded-2xl focus:outline focus:outline-2 focus:outline-offset-4 focus:outline-accent-400"
         >
           {status === 'idle' && (

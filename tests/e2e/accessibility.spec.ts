@@ -42,6 +42,7 @@ test('teclado mantém foco útil depois da busca e do retry', async ({ page, wea
   await expect(input).toHaveAccessibleDescription('Informe o nome de uma cidade.');
   await input.fill('São Paulo');
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('article')).toHaveCount(5);
   const focusTarget = page.locator('main:focus, input[name="city"]:focus');
   await expect(focusTarget).toHaveCount(1);
