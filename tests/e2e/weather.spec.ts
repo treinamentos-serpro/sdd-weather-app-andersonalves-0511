@@ -12,6 +12,14 @@ const city = {
 
 const forecast = {
   timezone: 'America/Sao_Paulo',
+  current_units: {
+    temperature_2m: '°C',
+    wind_speed_10m: 'km/h',
+  },
+  daily_units: {
+    temperature_2m_min: '°C',
+    temperature_2m_max: '°C',
+  },
   current: {
     time: '2026-01-10T12:00',
     temperature_2m: 0,

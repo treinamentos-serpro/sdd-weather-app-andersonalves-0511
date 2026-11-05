@@ -35,6 +35,14 @@ export const test = base.extend<{ weatherApi: WeatherApi }>({
         await route.fulfill({
           json: {
             timezone,
+            current_units: {
+              temperature_2m: '°C',
+              wind_speed_10m: 'km/h',
+            },
+            daily_units: {
+              temperature_2m_min: '°C',
+              temperature_2m_max: '°C',
+            },
             current: {
               time: current.observedAtLocal,
               temperature_2m: current.temperatureC,
