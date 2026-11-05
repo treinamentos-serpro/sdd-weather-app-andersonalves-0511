@@ -62,6 +62,19 @@ dias locais seguintes.
 - **RF-08:** Como pessoa que consulta dados meteorológicos, quero saber a fonte
   dos dados para entender sua procedência.
 
+## Traceability Matrix
+
+| User Story | Acceptance Criteria | Relevant Non-Functional Requirements |
+|---|---|---|
+| RF-01 — Buscar cidades | CA-01a, CA-01b, CA-01c | RNF-01, RNF-02, RNF-03, RNF-04, RNF-05, RNF-06, RNF-07, RNF-08 |
+| RF-02 — Selecionar localidade | CA-02 | RNF-01, RNF-02, RNF-03, RNF-06, RNF-07, RNF-08 |
+| RF-03 — Consultar clima atual | CA-03a, CA-03b | RNF-01, RNF-02, RNF-03, RNF-04, RNF-06, RNF-07, RNF-08 |
+| RF-04 — Consultar previsão | CA-04a, CA-04b | RNF-01, RNF-02, RNF-03, RNF-04, RNF-06, RNF-07, RNF-08 |
+| RF-05 — Alternar temperatura | CA-05a, CA-05b, CA-05c | RNF-01, RNF-02, RNF-03, RNF-08 |
+| RF-06 — Usar em dispositivos móveis | CA-06 | RNF-02, RNF-03, RNF-08 |
+| RF-07 — Comunicar estado e falhas | CA-07a, CA-07b, CA-07c, CA-07d | RNF-01, RNF-02, RNF-03, RNF-04, RNF-07, RNF-08 |
+| RF-08 — Atribuir fonte | CA-08 | RNF-01, RNF-03, RNF-08 |
+
 ## Acceptance Criteria
 
 - **CA-01a (RF-01)**
