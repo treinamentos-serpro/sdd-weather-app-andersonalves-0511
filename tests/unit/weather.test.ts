@@ -12,6 +12,8 @@ describe('contratos de clima', () => {
       weatherCode: number | null;
       relativeHumidity: number | null;
       windSpeedKmh: number | null;
+      precipitationMm?: number | null;
+      pressureHpa?: number | null;
       observedAtLocal: string | null;
     }>();
     expectTypeOf<ForecastDay>().toEqualTypeOf<{
@@ -36,6 +38,8 @@ describe('MOCK_WEATHER', () => {
       weatherCode: 2,
       relativeHumidity: 65,
       windSpeedKmh: 12.6,
+      precipitationMm: 0,
+      pressureHpa: 1015,
       observedAtLocal: '2026-01-10T12:00',
     });
   });

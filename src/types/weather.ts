@@ -15,6 +15,8 @@ export interface CurrentWeather {
   weatherCode: number | null;
   relativeHumidity: number | null;
   windSpeedKmh: number | null;
+  precipitationMm?: number | null;
+  pressureHpa?: number | null;
   observedAtLocal: string | null;
 }
 

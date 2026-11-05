@@ -23,7 +23,9 @@ dias locais seguintes.
   deve ser selecionável e identificar uma localidade de forma inequívoca pelos
   dados de localização retornados, mesmo que os rótulos sejam iguais.
 - **RF-03 — Consultar clima atual:** para a localidade selecionada, exibir
-  temperatura, condição meteorológica, umidade relativa e velocidade do vento.
+  temperatura, ícone e condição meteorológica, umidade relativa, velocidade do
+  vento, precipitação e pressão atmosférica. Precipitação e pressão ausentes
+  são identificadas como “Indisponível”, sem inventar valores.
   Exibir também o horário de referência informado pela fonte, no fuso local da
   cidade.
 - **RF-04 — Consultar previsão:** exibir cinco entradas diárias para a
@@ -104,7 +106,7 @@ dias locais seguintes.
     selecionada, inclusive quando outra opção tem rótulo idêntico
 - **CA-03a (RF-03)**
   - **Given** a consulta atual retorna temperatura, condição, umidade,
-    velocidade do vento e horário de referência
+    velocidade do vento, precipitação, pressão e horário de referência
   - **When** a consulta termina
   - **Then** a interface mostra a cidade, todos os campos recebidos, unidades
     especificadas e horário convertido para o fuso local informado para a cidade
@@ -178,7 +180,7 @@ dias locais seguintes.
 - **RNF-01 — Localização:** toda a interface, mensagens, condições
   meteorológicas e datas usam pt-BR. Datas são formatadas como `dd/MM/yyyy` e
   horários no formato de 24 horas, ambos no fuso da cidade; umidade usa % e
-  velocidade do vento usa km/h.
+  velocidade do vento usa km/h, precipitação usa mm e pressão usa hPa.
 - **RNF-02 — Responsividade:** em viewports de 320 a 1920 px, não há rolagem
   horizontal do documento. Conteúdo mais extenso pode usar rolagem vertical.
 - **RNF-03 — Acessibilidade:** cumprir WCAG 2.2 nível AA. Todos os controles têm
@@ -276,4 +278,3 @@ dias locais seguintes.
 2. Há requisitos legais ou de produto para política de privacidade, retenção de
    logs ou aviso específico sobre o envio da busca à Open-Meteo? Confirmar com
    as áreas responsáveis antes do lançamento.
-

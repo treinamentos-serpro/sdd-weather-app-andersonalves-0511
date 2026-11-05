@@ -68,7 +68,7 @@ src/
     weather.ts
   lib/
     temperature.ts
-    weatherCode.ts
+    weatherCodes.ts
     dateTime.ts
     normalizeWeather.ts
 tests/
@@ -76,7 +76,7 @@ tests/
   e2e/
 ```
 
-`main.tsx` inicializa React; `App.tsx` compõe a página. `lib/temperature.ts` converte e formata temperaturas; `lib/weatherCode.ts` mapeia WMO para pt-BR; `lib/dateTime.ts` trata datas locais e formatação; `lib/normalizeWeather.ts` transforma a resposta meteorológica validada em condições atuais e cinco entradas diárias. A validação do payload externo e o mapeamento simples da geocodificação permanecem junto aos respectivos serviços, sem criar um arquivo para cada pequena transformação.
+`main.tsx` inicializa React; `App.tsx` compõe a página. `lib/temperature.ts` converte e formata temperaturas; `lib/weatherCodes.ts` mapeia WMO para rótulos pt-BR e ícones decorativos; `lib/dateTime.ts` trata datas locais e formatação; `lib/normalizeWeather.ts` transforma a resposta meteorológica validada em condições atuais e cinco entradas diárias. A validação do payload externo e o mapeamento simples da geocodificação permanecem junto aos respectivos serviços, sem criar um arquivo para cada pequena transformação.
 
 As pastas propostas são fronteiras de responsabilidade, não novas camadas de execução. Não criar arquivos vazios preventivamente: introduzir cada módulo quando a tarefa correspondente exigir. Localizar os testes seguindo a organização já adotada pelo repositório, sem duplicar convenções.
 
@@ -102,6 +102,8 @@ interface CurrentWeather {
   weatherCode: number | null;
   relativeHumidity: number | null;
   windSpeedKmh: number | null;
+  precipitationMm?: number | null;
+  pressureHpa?: number | null;
   observedAtLocal: string | null;
 }
 
@@ -121,6 +123,13 @@ interface WeatherData {
 ```
 
 Resultados da busca são identificados por identidade geográfica — coordenadas e, quando disponível, o ID da fonte — e não pelo texto do rótulo. `admin1` é opcional; não renderizar região vazia. `weatherCode` é interpretado por um mapeamento local de códigos WMO para rótulos em pt-BR, com fallback explícito de indisponibilidade para códigos não reconhecidos. Valores de temperatura permanecem em Celsius e são arredondados a uma casa decimal depois da conversão para exibição.
+
+Precipitação (`precipitationMm`, mm) e pressão à superfície (`pressureHpa`, hPa)
+são opcionais para preservar os consumidores existentes. A UI mostra
+“Indisponível” para ausência, `null` ou número não finito. Quando a integração
+for implementada, mapear `current.precipitation` e `current.surface_pressure`
+sem confundir pressão à superfície com pressão ao nível do mar. O mock inclui
+essas métricas; esta etapa não adiciona acesso à API.
 
 ## Data Flow
 

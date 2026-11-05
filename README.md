@@ -136,6 +136,22 @@ do grupo “Unidade de temperatura”. Use Tab/Shift+Tab para navegar e
 Enter/Espaço para selecionar. Selecionar a unidade já ativa não emite mudança.
 O controle não converte dados nem faz requisições.
 
+## Clima atual
+
+[`CurrentWeather`](src/components/CurrentWeather.tsx) recebe `city`, `current`
+e `unit`. O hero exibe temperatura, ícone WMO decorativo, condição em pt-BR,
+umidade (%), vento (km/h), precipitação (mm), pressão (hPa) e horário local.
+`current.precipitationMm` e `current.pressureHpa` são opcionais para manter
+compatibilidade com dados existentes. Ausências e valores não finitos aparecem
+como “Indisponível”, sem substituir por zero.
+
+Os helpers [`temperature`](src/lib/temperature.ts) e
+[`weatherCodes`](src/lib/weatherCodes.ts) podem ser reutilizados na previsão.
+A temperatura é convertida só na apresentação, com uma casa decimal.
+[`dateTime`](src/lib/dateTime.ts) formata a observação ISO local sem aplicar
+o fuso do dispositivo. O componente não acessa a API; loading, erro e vazio
+da consulta ficam a cargo da composição da tela.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

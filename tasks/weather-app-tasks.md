@@ -353,7 +353,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     “Chuva fraca”; todos os demais códigos suportados também têm rótulo pt-BR.
   - Código não mapeado e `null` retornam exatamente “Indisponível”.
 - **Dependências:** T-01.
-- **Arquivos prováveis:** `src/lib/weatherCode.ts`
+- **Arquivos prováveis:** `src/lib/weatherCodes.ts`
 - **Tipo:** Data
 - **Rastreabilidade:** RF-03–04; CA-03a–b, CA-04a–b; RNF-01.
 
@@ -365,7 +365,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     T-15 e percorrem a tabela para confirmar nenhum rótulo vazio.
   - Código fora da tabela e `null` retornam exatamente “Indisponível”.
 - **Dependências:** T-15.
-- **Arquivos prováveis:** `tests/unit/weatherCode.test.ts`
+- **Arquivos prováveis:** `tests/unit/weatherCodes.test.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-03–04; CA-03a–b, CA-04a–b.
 
@@ -484,7 +484,8 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Recebe dados normalizados e unidade por props, sem acessar rede ou estado
     global.
   - Renderização contém nome/país, temperatura, condição, umidade com `%`, vento
-    com `km/h` e horário de referência local.
+    com `km/h`, precipitação com `mm`, pressão com `hPa`, ícone WMO e horário de
+    referência local. Precipitação e pressão são opcionais no contrato.
   - Para cada prop nula, renderiza “Indisponível” no campo correspondente e
     mantém visíveis os demais campos não nulos.
 - **Dependências:** T-01, T-13, T-15, T-21.
@@ -498,7 +499,8 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   componente atual.
 - **Critérios de aceite:**
   - Teste de sucesso verifica texto e unidades exatos para cidade, condição,
-    temperatura, umidade, vento e horário.
+    temperatura, umidade, vento, precipitação, pressão e horário; ícone
+    decorativo não duplica o anúncio da condição.
   - Fixture com cada campo individualmente nulo verifica “Indisponível” naquele
     campo e preservação dos outros valores.
   - Fixtures Celsius/Fahrenheit conferem a temperatura renderizada pela unidade
