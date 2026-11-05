@@ -518,11 +518,13 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
   - Recebe previsão normalizada e unidade por props, sem acesso à rede ou estado
     global.
   - DOM contém exatamente cinco entradas em ordem, com data, condição, mínima e
-    máxima em cada uma.
+    máxima e probabilidade de chuva em cada uma. Ícones WMO são decorativos,
+    acompanhados pela condição textual.
   - Data/campo nulo correspondente exibe “Indisponível”; entradas válidas
     permanecem visíveis.
 - **Dependências:** T-01, T-13, T-15, T-17, T-21.
-- **Arquivos prováveis:** `src/components/DailyForecast.tsx`
+- **Arquivos prováveis:** `src/components/ForecastList.tsx`,
+  `src/components/ForecastCard.tsx`, `src/lib/format.ts`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-04–05; CA-04a–b, CA-05a–c; RNF-01, RNF-03.
 
@@ -531,13 +533,14 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
 - **Descrição:** Verificar número e conteúdo dos dias e apresentação parcial.
 - **Critérios de aceite:**
   - Asserções verificam cinco entradas, sua ordem e presença de condição,
-    mínima/máxima.
+    mínima/máxima e probabilidade de chuva (incluindo 0%, 100% e ausências).
   - Fixture parcial verifica “Indisponível” para cada lacuna sem remover dias ou
     valores válidos.
   - Fixtures Celsius/Fahrenheit verificam unidade e valor renderizados em cada
     mínima/máxima.
 - **Dependências:** T-25.
-- **Arquivos prováveis:** `tests/unit/DailyForecast.test.tsx`
+- **Arquivos prováveis:** `tests/unit/ForecastList.test.tsx`,
+  `tests/unit/ForecastCard.test.tsx`, `tests/unit/format.test.ts`
 - **Tipo:** Test
 - **Rastreabilidade:** RF-04–05; CA-04a–b, CA-05a–c.
 
@@ -731,7 +734,7 @@ valor visível primeiro; endurecimento e validação entre navegadores vêm depo
     visível via teclado.
 - **Dependências:** T-23, T-25, T-30.
 - **Arquivos prováveis:** `src/components/CurrentWeather.tsx`,
-  `src/components/DailyForecast.tsx`
+  `src/components/ForecastList.tsx`, `src/components/ForecastCard.tsx`
 - **Tipo:** UI
 - **Rastreabilidade:** RF-06; CA-06; RNF-02–03.
 

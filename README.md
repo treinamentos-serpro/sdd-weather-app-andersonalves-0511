@@ -152,6 +152,22 @@ A temperatura é convertida só na apresentação, com uma casa decimal.
 o fuso do dispositivo. O componente não acessa a API; loading, erro e vazio
 da consulta ficam a cargo da composição da tela.
 
+## Previsão diária
+
+[`ForecastList`](src/components/ForecastList.tsx) recebe `forecast: ForecastDay[]`
+e `unit: Unit`. Use `<ForecastList forecast={MOCK_WEATHER.forecast} unit={unit} />`.
+O grid usa duas colunas no mobile, três em `sm` e cinco em `lg`.
+A lista preserva as datas normalizadas recebidas; lista vazia mostra
+“Previsão indisponível”, sem inventar dias.
+
+[`ForecastCard`](src/components/ForecastCard.tsx) recebe `day: ForecastDay` e
+`unit: Unit`. Cada card exibe dia da semana e data, ícone decorativo, condição,
+máxima, mínima e probabilidade de chuva. O helper
+[`formatDay`](src/lib/format.ts) não depende do relógio ou fuso do dispositivo.
+`precipitationProbability` é opcional, de 0 a 100 (%); ausências ou valores
+inválidos aparecem como “Indisponível”. O mock inclui probabilidades de exemplo.
+Loading e erro da consulta continuam sob responsabilidade da composição da tela.
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

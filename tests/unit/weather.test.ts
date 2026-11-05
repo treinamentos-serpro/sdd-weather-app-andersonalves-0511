@@ -21,6 +21,7 @@ describe('contratos de clima', () => {
       weatherCode: number | null;
       temperatureMinC: number | null;
       temperatureMaxC: number | null;
+      precipitationProbability?: number | null;
     }>();
     expectTypeOf(MOCK_WEATHER).toEqualTypeOf<WeatherData>();
   });

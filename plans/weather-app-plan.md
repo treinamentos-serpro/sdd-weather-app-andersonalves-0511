@@ -55,7 +55,8 @@ src/
     SearchForm.tsx
     LocationResults.tsx
     CurrentWeather.tsx
-    DailyForecast.tsx
+    ForecastList.tsx
+    ForecastCard.tsx
     TemperatureUnitToggle.tsx
     StatusMessage.tsx
     SourceAttribution.tsx
@@ -68,6 +69,7 @@ src/
     weather.ts
   lib/
     temperature.ts
+    format.ts
     weatherCodes.ts
     dateTime.ts
     normalizeWeather.ts
@@ -112,6 +114,7 @@ interface ForecastDay {
   weatherCode: number | null;
   temperatureMinC: number | null;
   temperatureMaxC: number | null;
+  precipitationProbability?: number | null;
 }
 
 interface WeatherData {
@@ -130,6 +133,21 @@ são opcionais para preservar os consumidores existentes. A UI mostra
 for implementada, mapear `current.precipitation` e `current.surface_pressure`
 sem confundir pressão à superfície com pressão ao nível do mar. O mock inclui
 essas métricas; esta etapa não adiciona acesso à API.
+
+`ForecastDay.precipitationProbability` é opcional, em %, para compatibilidade
+com previsões existentes. Ausência, `null`, valores não finitos ou fora de
+0–100 são exibidos como “Indisponível”. Na futura integração, mapear
+`daily.precipitation_probability_max` por data; não deduzir probabilidade do
+código WMO ou da quantidade de precipitação.
+
+`ForecastList` recebe `forecast: ForecastDay[]` normalizado e `unit: Unit`;
+preserva a ordem recebida e delega cada entrada a `ForecastCard`, com props
+`day: ForecastDay` e `unit: Unit`. A normalização das cinco datas continua
+na camada de dados. Lista vazia mostra mensagem explícita. O grid usa
+`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5`.
+`lib/format.ts` fornece `formatDay(date)` (dia da semana e `dd/MM/yyyy` em
+pt-BR, independente do fuso do dispositivo) e a formatação da probabilidade.
+Não depende do relógio global nem tenta inferir “hoje”.
 
 ## Data Flow
 

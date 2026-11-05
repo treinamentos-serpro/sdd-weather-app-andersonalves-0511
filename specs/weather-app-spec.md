@@ -31,7 +31,8 @@ dias locais seguintes.
 - **RF-04 — Consultar previsão:** exibir cinco entradas diárias para a
   localidade selecionada: hoje no fuso local da cidade e os quatro dias locais
   seguintes. Cada entrada apresenta condição meteorológica e temperaturas
-  mínima e máxima.
+  mínima e máxima, ícone e probabilidade de chuva em %. Quando a probabilidade
+  estiver ausente, exibir “Indisponível”, sem presumir 0%.
 - **RF-05 — Alternar temperatura:** permitir alternar entre Celsius (°C) e
   Fahrenheit (°F). A unidade deve valer para todas as temperaturas atuais e
   previstas. O padrão é °C; a escolha permanece até a página ser recarregada,
@@ -120,7 +121,7 @@ dias locais seguintes.
     2026-01-10 a 2026-01-14
   - **When** a previsão é exibida
   - **Then** há cinco entradas nessas datas, cada uma com condição e
-    temperaturas mínima e máxima
+    temperaturas mínima e máxima e probabilidade de chuva quando fornecida
 - **CA-04b (RF-04)**
   - **Given** um ou mais dias ou campos da previsão não estão disponíveis
   - **When** a previsão é exibida
